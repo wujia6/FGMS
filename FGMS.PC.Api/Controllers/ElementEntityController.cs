@@ -94,7 +94,7 @@ namespace FGMS.PC.Api.Controllers
             if (isGroup.HasValue)
                 expression = expression.And(src => src.IsGroup == isGroup.Value);
             if (startDate.HasValue && endDate.HasValue)
-                expression = expression.And(src => src.DiscardTime >= startDate.Value && src.DiscardTime <= endDate.Value);
+                expression = expression.And(src => src.DiscardTime >= startDate.Value && src.DiscardTime <= endDate.Value.AddHours(24));
             var entities = (await elementEntityService.ListAsync(
                 expression, 
                 include: src => src.Include(src => src.Element!).ThenInclude(src => src.Brand!).Include(src => src.Component!).ThenInclude(src => src.WorkOrder!).Include(src => src.CargoSpace!))).OrderByDescending(src => src.Id)
