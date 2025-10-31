@@ -71,9 +71,12 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="category">类型</param>
         /// <param name="status">状态</param>
         /// <param name="isGroup">是否组成员</param>
+        /// <param name="startDate">报废日期（开始）</param>
+        /// <param name="endDate">报废日期（结束）</param>
         /// <returns></returns>
         [HttpGet("list")]
-        public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize, string? material, string? code, string? elementMaterialNo, string? modal, string? category, string? status, bool? isGroup)
+        public async Task<dynamic> ListAsync(
+            int? pageIndex, int? pageSize, string? material, string? code, string? elementMaterialNo, string? modal, string? category, string? status, bool? isGroup, DateTime? startDate, DateTime? endDate)
         {
             var expression = ExpressionBuilder.GetTrue<ElementEntity>();
             if (!string.IsNullOrEmpty(material))
@@ -90,6 +93,8 @@ namespace FGMS.PC.Api.Controllers
                 expression = expression.And(src => src.Status == (ElementEntityStatus)Enum.Parse(typeof(ElementEntityStatus), status));
             if (isGroup.HasValue)
                 expression = expression.And(src => src.IsGroup == isGroup.Value);
+            if (startDate.HasValue && endDate.HasValue)
+                expression = expression.And(src => src.DiscardTime >= startDate.Value && src.DiscardTime <= endDate.Value);
             var entities = (await elementEntityService.ListAsync(
                 expression, 
                 include: src => src.Include(src => src.Element!).ThenInclude(src => src.Brand!).Include(src => src.Component!).ThenInclude(src => src.WorkOrder!).Include(src => src.CargoSpace!))).OrderByDescending(src => src.Id)

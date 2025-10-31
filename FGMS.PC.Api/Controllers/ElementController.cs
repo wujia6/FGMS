@@ -7,6 +7,7 @@ using FGMS.Utils;
 using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing.Constraints;
 using Microsoft.EntityFrameworkCore;
 using MiniExcelLibs;
 
@@ -100,7 +101,8 @@ namespace FGMS.PC.Api.Controllers
                 expression = expression.And(src => src.ModalNo.Contains(modal));
             if (!string.IsNullOrEmpty(spec))
                 expression = expression.And(src => src.Spec.Contains(spec));
-            var entities = await elementService.ListAsync(expression, include: src => src.Include(src => src.Brand!).Include(src => src.ElementEntities!).ThenInclude(src => src.CargoSpace!));
+            var entities = await elementService.ListAsync(
+                expression, include: src => src.Include(src => src.Brand!).Include(src => src.ElementEntities!.Where(dst => dst.Status != ElementEntityStatus.报废)).ThenInclude(src => src.CargoSpace!));
             int total = entities.Count;
             if (pageIndex.HasValue && pageSize.HasValue)
                 entities = entities.OrderByDescending(src => src.Id).Skip((pageIndex.Value - 1) * pageSize.Value).Take(pageSize.Value).ToList();

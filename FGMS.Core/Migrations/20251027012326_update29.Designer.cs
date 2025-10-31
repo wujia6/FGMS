@@ -4,6 +4,7 @@ using FGMS.Core.EfCore.Implements;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FGMS.Core.Migrations
 {
     [DbContext(typeof(FgmsDbContext))]
-    partial class FgmsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251027012326_update29")]
+    partial class update29
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -685,7 +687,7 @@ namespace FGMS.Core.Migrations
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("6a26ffd16bdc4dda");
+                        .HasDefaultValue("d797ff58a6dd472d");
 
                     b.Property<DateTime>("CreateDate")
                         .ValueGeneratedOnAdd()
@@ -716,16 +718,9 @@ namespace FGMS.Core.Migrations
                     b.Property<int>("Priority")
                         .HasColumnType("int");
 
-                    b.Property<string>("Reason")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
                     b.Property<string>("Remark")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
-
-                    b.Property<int?>("RenovateorId")
-                        .HasColumnType("int");
 
                     b.Property<DateTime?>("RequiredDate")
                         .HasColumnType("datetime2");
@@ -747,11 +742,57 @@ namespace FGMS.Core.Migrations
 
                     b.HasIndex("Pid");
 
-                    b.HasIndex("RenovateorId");
-
                     b.HasIndex("UserInfoId");
 
                     b.ToTable("WorkOrders");
+                });
+
+            modelBuilder.Entity("FGMS.Models.Entities.WorkOrderEquipmentChange", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+
+                    b.Property<string>("ChangeReason")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("ChangeTime")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("getdate()");
+
+                    b.Property<int>("NewEquipmentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("OldEquipment")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("RequestorId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("WorkOrderId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NewEquipmentId");
+
+                    b.HasIndex("RequestorId");
+
+                    b.HasIndex("WorkOrderId");
+
+                    b.ToTable("WorkOrderEquipmentChanges");
                 });
 
             modelBuilder.Entity("FGMS.Models.Entities.WorkOrderStandard", b =>
@@ -955,11 +996,6 @@ namespace FGMS.Core.Migrations
                         .HasForeignKey("Pid")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("FGMS.Models.Entities.UserInfo", "Renovateor")
-                        .WithMany()
-                        .HasForeignKey("RenovateorId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("FGMS.Models.Entities.UserInfo", "UserInfo")
                         .WithMany("WorkOrders")
                         .HasForeignKey("UserInfoId")
@@ -970,9 +1006,34 @@ namespace FGMS.Core.Migrations
 
                     b.Navigation("Parent");
 
-                    b.Navigation("Renovateor");
-
                     b.Navigation("UserInfo");
+                });
+
+            modelBuilder.Entity("FGMS.Models.Entities.WorkOrderEquipmentChange", b =>
+                {
+                    b.HasOne("FGMS.Models.Entities.Equipment", "NewEquipment")
+                        .WithMany("WorkOrderEquipmentChanges")
+                        .HasForeignKey("NewEquipmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FGMS.Models.Entities.UserInfo", "Requestor")
+                        .WithMany("WorkOrderEquipmentChanges")
+                        .HasForeignKey("RequestorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FGMS.Models.Entities.WorkOrder", "WorkOrder")
+                        .WithMany("WorkOrderEquipmentChanges")
+                        .HasForeignKey("WorkOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("NewEquipment");
+
+                    b.Navigation("Requestor");
+
+                    b.Navigation("WorkOrder");
                 });
 
             modelBuilder.Entity("FGMS.Models.Entities.WorkOrderStandard", b =>
@@ -1032,6 +1093,8 @@ namespace FGMS.Core.Migrations
 
             modelBuilder.Entity("FGMS.Models.Entities.Equipment", b =>
                 {
+                    b.Navigation("WorkOrderEquipmentChanges");
+
                     b.Navigation("WorkOrders");
                 });
 
@@ -1060,6 +1123,8 @@ namespace FGMS.Core.Migrations
 
             modelBuilder.Entity("FGMS.Models.Entities.UserInfo", b =>
                 {
+                    b.Navigation("WorkOrderEquipmentChanges");
+
                     b.Navigation("WorkOrders");
                 });
 
@@ -1068,6 +1133,8 @@ namespace FGMS.Core.Migrations
                     b.Navigation("Childrens");
 
                     b.Navigation("Components");
+
+                    b.Navigation("WorkOrderEquipmentChanges");
 
                     b.Navigation("WorkOrderStandards");
                 });

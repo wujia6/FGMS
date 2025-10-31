@@ -7,6 +7,7 @@ using FGMS.Utils;
 using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 
@@ -38,6 +39,7 @@ namespace FGMS.Android.Api.Controllers
         /// <param name="elementEntityService"></param>
         /// <param name="trackLogService"></param>
         /// <param name="componentLogService"></param>
+        /// <param name="workOrderEquipmentChangeService"></param>
         /// <param name="userOnline"></param>
         /// <param name="mapper"></param>
         public WorkOrderController(
@@ -69,8 +71,8 @@ namespace FGMS.Android.Api.Controllers
         [HttpGet]
         public async Task<dynamic> ListAsync(string? equipmentCode, string? type)
         {
-            var expression = ExpressionBuilder.GetTrue<WorkOrder>().And(
-                src => src.Status != WorkOrderStatus.待审 && src.Status != WorkOrderStatus.驳回 && 
+            var expression = ExpressionBuilder.GetTrue<WorkOrder>().And(src =>
+                src.Status != WorkOrderStatus.待审 && src.Status != WorkOrderStatus.驳回 && 
                 src.Status != WorkOrderStatus.机台接收 && src.Status != WorkOrderStatus.工单配送 && 
                 src.Status != WorkOrderStatus.工单结束 && src.Status != WorkOrderStatus.取消);
 
@@ -100,7 +102,7 @@ namespace FGMS.Android.Api.Controllers
         {
             var entity = await workOrderService.ModelAsync(
                 expression: src => src.Components!.FirstOrDefault(src => src.ElementEntities!.FirstOrDefault(src => src.Code!.Equals(eeCode)) != null) != null,
-                include: src => src.Include(src => src.Equipment).Include(src => src.UserInfo).Include(src => src.Components!).ThenInclude(src => src.ElementEntities!).ThenInclude(src => src.Element!));
+                include: src => src.Include(src => src.Equipment).Include(src => src.UserInfo).Include(src => src.Renovateor!).Include(src => src.Components!).ThenInclude(src => src.ElementEntities!).ThenInclude(src => src.Element!));
 
             if (entity == null)
                 return new { success = false, message = "工单不存在或已删除" };
@@ -125,7 +127,8 @@ namespace FGMS.Android.Api.Controllers
             bool success = false;
             int orderId = paramJson!.id;
             var orderEntity = await workOrderService.ModelAsync(
-                expression: src => src.Id == orderId, include: src => src.Include(src => src.Parent!).Include(src => src.Components!).ThenInclude(src => src.ElementEntities!).Include(src => src.Equipment!));
+                expression: src => src.Id == orderId, 
+                include: src => src.Include(src => src.Parent!).Include(src => src.Components!).ThenInclude(src => src.ElementEntities!).Include(src => src.Equipment!));
 
             if (orderEntity.Type == WorkOrderType.砂轮返修 && orderEntity.Parent != null)
             {
@@ -165,6 +168,22 @@ namespace FGMS.Android.Api.Controllers
                 }
             }
             return new { success, message = success ? "工单已接收" : "接收失败" };
+        }
+
+        /// <summary>
+        /// 添加机台更换工单
+        /// </summary>
+        /// <param name="paramJson">{ 'woId': int, 'newEquipmentId': int, 'reason': 'string' }</param>
+        /// <returns></returns>
+        [HttpPut]
+        public async Task<dynamic> EquipmentChangeAsync([FromBody] dynamic paramJson)
+        {
+            if (paramJson is null || paramJson.woId is null || paramJson.newEquipmentId is null || paramJson.reason is null)
+                return Task.FromResult<dynamic>(new { success = false, message = "参数错误" });
+
+            paramJson.userInfoId = userOnline.Id!.Value;
+            paramJson.orderNum = $"EC{GenerateOrderNumber()}";
+            return await workOrderService.EquipmentChangeAsync(paramJson);
         }
 
         /// <summary>
@@ -291,27 +310,11 @@ namespace FGMS.Android.Api.Controllers
         [HttpPut]
         public async Task<dynamic> RenovatedAsync([FromBody] ElementEntityDto dto)
         {
+            if (string.IsNullOrEmpty(dto.WorkOrderNo))
+                return new { success = false, message = "未知工单" };
+
             var entity = mapper.Map<ElementEntity>(dto);
-            if (entity.Status != ElementEntityStatus.出库)
-                entity.Status = ElementEntityStatus.出库;
-            bool success = await elementEntityService.UpdateAsync(entity, new Expression<Func<ElementEntity, object>>[]
-            {
-                src => src.Status,
-                src => src.BigDiameter!,
-                src => src.SmallDiameter!,
-                src => src.InnerDiameter!,
-                src => src.OuterDiameter!,
-                src => src.Width!,
-                src => src.BigRangle!,
-                src => src.SmallRangle!,
-                src => src.PlaneWidth!,
-                src => src.AxialRunout!,
-                src => src.RadialRunout!,
-                src => src.CurrentAngle!
-            });
-            if (success)
-                await trackLogService.AddAsync(new TrackLog { Type = LogType.整修, Content = $"工件：{entity.MaterialNo} 整修" });
-            return new { success, message = success ? "修整成功" : "修整失败" };
+            return await workOrderService.RenovatedAsync(entity, dto.WorkOrderNo, userOnline.Id!.Value);
         }
 
         /// <summary>
@@ -413,7 +416,7 @@ namespace FGMS.Android.Api.Controllers
                 include: src => src.Include(src => src.Equipment!).ThenInclude(src => src.Organize).Include(src => src.Components!).ThenInclude(src => src.ElementEntities!).Include(src => src.Childrens!));
             var ees = entity.Components!.SelectMany(src => src.ElementEntities!);
 
-            if (entity.Childrens!.Any())
+            if (entity.Childrens!.Any(src => src.Type == WorkOrderType.砂轮返修))
                 return new { success = false, message = "已执行返修流程，无法退仓" };
             if (!ees.Any())
                 return new { success = false, message = "工单异常" };
@@ -458,7 +461,7 @@ namespace FGMS.Android.Api.Controllers
             if (order == null)
                 return new { success = false, message = "未知工单" };
 
-            if (order.Childrens is not null && order.Childrens.Any())
+            if (order.Childrens is not null && order.Childrens.Any(src => src.Type == WorkOrderType.砂轮返修))
                 return new { success = false, message = $"{order.OrderNo}包含返修单，请待返修流程结束" };
 
             var equipment = order.Equipment;
@@ -669,116 +672,6 @@ namespace FGMS.Android.Api.Controllers
 
             return new { success, message = success ? "下机完成" : "下机失败" };
         }
-
-        //[HttpPost]
-        //public async Task<dynamic> OffAsync([FromBody] List<ComponentDto> dtos)
-        //{
-        //    if (dtos is null)
-        //        throw new ArgumentNullException(nameof(dtos));
-
-        //    int woId = dtos.FirstOrDefault()!.WorkOrderId!.Value;
-        //    var orderEntity = await workOrderService.ModelAsync(expression: src => src.Id == woId, include: src => src.Include(src => src.Equipment!));
-
-        //    if (orderEntity is null)
-        //        return new { success = false, message = "未知工单" };
-
-        //    var cmps = mapper.Map<List<Component>>(dtos);
-        //    var updateEeList = new List<ElementEntity>();
-        //    var logs = new List<TrackLog>();
-        //    var updateCmpLogs = new List<ComponentLog>();
-        //    var offDate = DateTime.Now;
-        //    cmps.ForEach(cmp =>
-        //    {
-        //        cmp.ElementEntities!.ToList().ForEach(ee =>
-        //        {
-        //            ee.Status = ElementEntityStatus.下机;
-        //            ee.FinishTime = offDate;
-        //            ee.UseDuration += (float)(ee.FinishTime.Value - ee.BeginTime!.Value).TotalHours;
-        //            updateEeList.Add(ee);
-        //            //单片砂轮日志
-        //            logs.Add(new TrackLog
-        //            {
-        //                Content = $"工件：{ee.MaterialNo}已下机，时间：{ee.FinishTime.Value}",
-        //                JsonContent = JsonConvert.SerializeObject(new
-        //                {
-        //                    ee.Code,
-        //                    ee.BigDiameter,
-        //                    ee.SmallDiameter,
-        //                    ee.InnerDiameter,
-        //                    ee.OuterDiameter,
-        //                    ee.Width,
-        //                    ee.BigRangle,
-        //                    ee.SmallRangle,
-        //                    ee.PlaneWidth,
-        //                    ee.AxialRunout,
-        //                    ee.RadialRunout,
-        //                    ee.CurrentAngle,
-        //                    ee.BeginTime,
-        //                    ee.FinishTime,
-        //                    ee.UseDuration
-        //                })
-        //            });
-        //        });
-
-        //        if (cmp.IsStandard)
-        //        {
-        //            var cmpLog = componentLogService.ModelAsync(expression: src => src.OrderNo.Equals(orderEntity.OrderNo) && src.DownJson == null).Result;
-        //            if (cmpLog != null)
-        //            {
-        //                var downEes = cmp.ElementEntities!.Select(ee => new
-        //                {
-        //                    ee.Code,
-        //                    ee.BigDiameter,
-        //                    ee.SmallDiameter,
-        //                    ee.InnerDiameter,
-        //                    ee.OuterDiameter,
-        //                    ee.Width,
-        //                    ee.BigRangle,
-        //                    ee.SmallRangle,
-        //                    ee.PlaneWidth,
-        //                    ee.AxialRunout,
-        //                    ee.RadialRunout,
-        //                    ee.CurrentAngle,
-        //                    ee.BeginTime,
-        //                    FinishTime = offDate,
-        //                    ee.UseDuration,
-        //                    Status = "下机"
-        //                });
-        //                cmpLog.DownJson = JsonConvert.SerializeObject(downEes);
-        //                updateCmpLogs.Add(cmpLog);
-        //            }
-        //        }
-        //    });
-
-        //    var equipment = orderEntity.Equipment;
-        //    equipment!.Mount = false;
-
-        //    bool success = await elementEntityService.UpdateAsync(updateEeList, new Expression<Func<ElementEntity, object>>[]
-        //    {
-        //        src => src.Status,
-        //        src => src.BigDiameter,
-        //        src => src.SmallDiameter,
-        //        src => src.InnerDiameter,
-        //        src => src.OuterDiameter,
-        //        src => src.Width,
-        //        src => src.BigRangle,
-        //        src => src.SmallRangle,
-        //        src => src.PlaneWidth,
-        //        src => src.AxialRunout,
-        //        src => src.RadialRunout,
-        //        src => src.CurrentAngle,
-        //        src => src.FinishTime,
-        //        src => src.UseDuration
-        //    }) && await equipmentService.UpdateAsync(equipment, new Expression<Func<Equipment, object>>[] { src => src.Mount });
-
-        //    if (success)
-        //    {
-        //        await componentLogService.UpdateAsync(updateCmpLogs, new Expression<Func<ComponentLog, object>>[] { src => src.DownJson });
-        //        await trackLogService.AddAsync(logs);
-        //    }
-
-        //    return new { success, message = success ? "下机完成" : "下机失败" };
-        //}
 
         /// <summary>
         /// 工单状态更新

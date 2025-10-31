@@ -4,6 +4,7 @@ using FGMS.Core.EfCore.Implements;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FGMS.Core.Migrations
 {
     [DbContext(typeof(FgmsDbContext))]
-    partial class FgmsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251027091112_update30")]
+    partial class update30
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -685,7 +687,7 @@ namespace FGMS.Core.Migrations
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("6a26ffd16bdc4dda");
+                        .HasDefaultValue("6ae8724f72ff4b20");
 
                     b.Property<DateTime>("CreateDate")
                         .ValueGeneratedOnAdd()
@@ -724,9 +726,6 @@ namespace FGMS.Core.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<int?>("RenovateorId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime?>("RequiredDate")
                         .HasColumnType("datetime2");
 
@@ -746,8 +745,6 @@ namespace FGMS.Core.Migrations
                     b.HasIndex("EquipmentId");
 
                     b.HasIndex("Pid");
-
-                    b.HasIndex("RenovateorId");
 
                     b.HasIndex("UserInfoId");
 
@@ -955,11 +952,6 @@ namespace FGMS.Core.Migrations
                         .HasForeignKey("Pid")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("FGMS.Models.Entities.UserInfo", "Renovateor")
-                        .WithMany()
-                        .HasForeignKey("RenovateorId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("FGMS.Models.Entities.UserInfo", "UserInfo")
                         .WithMany("WorkOrders")
                         .HasForeignKey("UserInfoId")
@@ -969,8 +961,6 @@ namespace FGMS.Core.Migrations
                     b.Navigation("Equipment");
 
                     b.Navigation("Parent");
-
-                    b.Navigation("Renovateor");
 
                     b.Navigation("UserInfo");
                 });

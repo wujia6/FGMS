@@ -11,6 +11,7 @@ using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Newtonsoft.Json;
 
 namespace FGMS.PC.Api.Controllers
@@ -87,13 +88,41 @@ namespace FGMS.PC.Api.Controllers
             var entities = await workOrderService.ListAsync(expression, include: src => src
                 .Include(src => src.Equipment!).ThenInclude(src => src.Organize!)
                 .Include(src => src.Components!).ThenInclude(src => src.ElementEntities!.OrderBy(src => src.Position)).ThenInclude(src => src.Element!)
+                .Include(src => src.Parent!).ThenInclude(src => src.Equipment!)
                 .Include(src => src.UserInfo!));
 
             entities = entities.OrderByDescending(src => src.Priority).ThenByDescending(src => src.CreateDate).ToList();
             int total = entities.Count;
             if (pageIndex.HasValue && pageSize.HasValue)
                 entities = entities.Skip((pageIndex.Value - 1) * pageSize.Value).Take(pageSize.Value).ToList();
-            return new { total, rows = mapper.Map<List<WorkOrderDto>>(entities) };
+
+            if (!string.IsNullOrEmpty(type) && (WorkOrderType)Enum.Parse(typeof(WorkOrderType), type) == WorkOrderType.机台更换)
+            {
+                var eclist = entities.Select(e => new
+                {
+                    e.Id,
+                    orderNo = e.OrderNo,
+                    type = Enum.GetName(typeof(WorkOrderType), e.Type),
+                    priority = Enum.GetName(typeof(WorkOrderPriority), e.Priority),
+                    parentOrderNo = e.Parent!.OrderNo,
+                    oldEquipmentCode = e.Parent!.Equipment!.Code,
+                    newEquipmentCode = e.Equipment!.Code,
+                    userInfoName = e.UserInfo!.Name,
+                    materialSpec = e.MaterialSpec,
+                    status = Enum.GetName(typeof(WorkOrderStatus), e.Status),
+                    createDate = e.CreateDate.ToString("yyyy-MM-dd HH:mm:ss"),
+                    reason = e.Reason
+                    //requiredDate = "-",
+                    //remark = e.Remark,
+                });
+                return new { total, rows = eclist.OrderByDescending(src => src.createDate) };
+            }
+            else
+            {
+                var list = entities.Where(e => e.Type != WorkOrderType.机台更换).ToList();
+                return new { total, rows = mapper.Map<List<WorkOrderDto>>(list) };
+            }
+                
         }
 
         /// <summary>
@@ -140,6 +169,19 @@ namespace FGMS.PC.Api.Controllers
             if (paramJson is null || paramJson!.woId is null && paramJson!.status is null)
                 return new { success = false, message = "参数错误" };
             return await workOrderService.AuditAsync(paramJson);
+        }
+
+        /// <summary>
+        /// pmc审核
+        /// </summary>
+        /// <param name="paramJson">{ 'woId': int, 'status': 'string' }</param>
+        /// <returns></returns>
+        [HttpPut("auditPmc")]
+        public async Task<dynamic> AuditPmcAsync([FromBody] dynamic paramJson)
+        {
+            if (paramJson is null || paramJson!.woId is null && paramJson!.status is null)
+                return Task.FromResult<dynamic>(new { success = false, message = "参数错误" });
+            return await workOrderService.AuditPmcAsync(paramJson);
         }
 
         /// <summary>

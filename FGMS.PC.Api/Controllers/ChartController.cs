@@ -101,7 +101,8 @@ namespace FGMS.PC.Api.Controllers
         public async Task<dynamic> OrderInAuditAsync()
         {
             var orderEntities = (await workOrderService.ListAsync(
-                expression: src => src.Status != WorkOrderStatus.工单结束 && 
+                expression: src => 
+                                src.Type != WorkOrderType.机台更换 && src.Status != WorkOrderStatus.工单结束 && 
                                 (src.Status == WorkOrderStatus.待审 || src.Status == WorkOrderStatus.审核通过 || 
                                 src.Status == WorkOrderStatus.砂轮整备 || src.Status == WorkOrderStatus.参数修整 || 
                                 src.Status == WorkOrderStatus.整备完成 || src.Type == WorkOrderType.砂轮退仓 || src.Type == WorkOrderType.砂轮返修), 

@@ -19,7 +19,6 @@ namespace FGMS.Services.Implements
         private readonly ICargoSpaceRepository? cargoSpaceRepositroy;
         private readonly IWorkOrderStandardRepository? workOrderStandardRepository;
         private readonly ITrackLogRepository? logRepository;
-        private readonly GenerateRandomNumber? randomNumber;
 
         public WorkOrderService(IBaseRepository<WorkOrder> repo, IFgmsDbContext context) : base(repo, context)
         {
@@ -32,8 +31,7 @@ namespace FGMS.Services.Implements
             IElementEntityRepository elementEntityRepository,
             ICargoSpaceRepository cargoSpaceRepositroy,
             IWorkOrderStandardRepository workOrderStandardRepository,
-            ITrackLogRepository logRepository,
-            GenerateRandomNumber randomNumber) : base(repo, context)
+            ITrackLogRepository logRepository) : base(repo, context)
         {
             this.workOrderRepository = repo as IWorkOrderRepository;
             this.fgmsDbContext = context;
@@ -42,7 +40,6 @@ namespace FGMS.Services.Implements
             this.cargoSpaceRepositroy = cargoSpaceRepositroy;
             this.workOrderStandardRepository = workOrderStandardRepository;
             this.logRepository = logRepository;
-            this.randomNumber = randomNumber;
         }
 
         public async Task<dynamic> ReceiveAsync(dynamic paramJson)
@@ -229,13 +226,13 @@ namespace FGMS.Services.Implements
                             ee.CargoSpaceId = new int?();
                             ee.Status = ElementEntityStatus.出库;
                             ee.Position = eeIds.FirstOrDefault(src => (int)src.id == ee.Id)!.position.ToString();
-                            elementEntityRepository.UpdateEntity(ee, new Expression<Func<ElementEntity, object>>[] 
-                            { 
-                                src => src.ComponentId!, 
-                                src => src.IsGroup, 
-                                src => src.CargoSpaceId!, 
-                                src => src.Status, 
-                                src => src.Position 
+                            elementEntityRepository.UpdateEntity(ee, new Expression<Func<ElementEntity, object>>[]
+                            {
+                                src => src.ComponentId!,
+                                src => src.IsGroup,
+                                src => src.CargoSpaceId!,
+                                src => src.Status,
+                                src => src.Position
                             });
                         }
                     }
@@ -245,6 +242,52 @@ namespace FGMS.Services.Implements
                 bool success = await fgmsDbContext.SaveChangesAsync() > 0;
                 await fgmsDbContext.CommitTrans();
                 return new { success, message = success ? "工单状态已更新" : "工单状态更新失败" };
+            }
+            catch (Exception ex)
+            {
+                await fgmsDbContext.RollBackTrans();
+                throw new Exception("Error Updating Order Status" + ex.Message);
+            }
+        }
+
+        public async Task<dynamic> RenovatedAsync(ElementEntity entity, string workOrderNo, int renovateorId)
+        {
+            if (entity.Status != ElementEntityStatus.出库)
+                entity.Status = ElementEntityStatus.出库;
+
+            var order = await workOrderRepository!.GetEntityAsync(expression: src => src.OrderNo == workOrderNo);
+
+            if (order is null)
+                return new { success = false, message = "未知工单" };
+
+            await fgmsDbContext!.BeginTrans();
+            try
+            {
+                if (order.RenovateorId == null)
+                {
+                    order.RenovateorId = renovateorId;
+                    workOrderRepository.UpdateEntity(order, new Expression<Func<WorkOrder, object>>[] { src => src.RenovateorId! });
+                }
+
+                elementEntityRepository!.UpdateEntity(entity, new Expression<Func<ElementEntity, object>>[] 
+                {
+                    src => src.Status,
+                    src => src.BigDiameter!,
+                    src => src.SmallDiameter!,
+                    src => src.InnerDiameter!,
+                    src => src.OuterDiameter!,
+                    src => src.Width!,
+                    src => src.BigRangle!,
+                    src => src.SmallRangle!,
+                    src => src.PlaneWidth!,
+                    src => src.AxialRunout!,
+                    src => src.RadialRunout!,
+                    src => src.CurrentAngle!
+                });
+                logRepository!.AddEntity(new TrackLog { Type = LogType.整修, Content = $"工件：{entity.MaterialNo} 整修" });
+                bool success = await fgmsDbContext.SaveChangesAsync() > 0;
+                await fgmsDbContext.CommitTrans();
+                return new { success, message = success ? "修整成功" : "修整失败" };
             }
             catch (Exception ex)
             {
@@ -400,6 +443,89 @@ namespace FGMS.Services.Implements
                 bool success = await fgmsDbContext.SaveChangesAsync() > 0;
                 await fgmsDbContext.CommitTrans();
                 return new { success, message = success ? "工单状态已更新" : "工单状态更新失败" };
+            }
+            catch (Exception ex)
+            {
+                await fgmsDbContext.RollBackTrans();
+                throw new Exception("Error Updating Order Status" + ex.Message);
+            }
+        }
+
+        public async Task<dynamic> AuditPmcAsync(dynamic paramJson)
+        {
+            int woId = paramJson!.woId;
+            string status = paramJson.status;
+            var orderEntity = await workOrderRepository!.GetEntityAsync(expression: src => src.Id == woId, include: src => src.Include(src => src.Parent!));
+
+            if (orderEntity is null || orderEntity.Parent is null)
+                return new { success = false, message = "未知工单" };
+
+            await fgmsDbContext!.BeginTrans();
+            try
+            {
+                var parentOrder = orderEntity.Parent;
+                parentOrder.Childrens = null;
+                var updateExpressions = new List<Expression<Func<WorkOrder, object>>>();
+                if (status == "审核通过")
+                {
+                    orderEntity.Status = WorkOrderStatus.审核通过;
+                    parentOrder.EquipmentId = orderEntity.EquipmentId;
+                    parentOrder.Status = WorkOrderStatus.工单配送;
+                    updateExpressions.Add(src => src.EquipmentId);
+                    updateExpressions.Add(src => src.Status);
+                }
+                else
+                {
+                    orderEntity.Status = WorkOrderStatus.驳回;
+                    parentOrder.Status = WorkOrderStatus.工单配送;
+                    updateExpressions.Add(src => src.Status);
+                }
+                workOrderRepository.UpdateEntity(orderEntity, new Expression<Func<WorkOrder, object>>[] { src => src.Status });
+                workOrderRepository.UpdateEntity(parentOrder, updateExpressions.ToArray());
+                bool success = await fgmsDbContext.SaveChangesAsync() > 0;
+                await fgmsDbContext.CommitTrans();
+                return new { success, message = success ? "工单状态已更新" : "工单状态更新失败" };
+            }
+            catch (Exception ex)
+            {
+                await fgmsDbContext.RollBackTrans();
+                throw new Exception("Error Updating Order Status" + ex.Message);
+            }
+        }
+
+        public async Task<dynamic> EquipmentChangeAsync(dynamic paramJson)
+        {
+            int woId = paramJson.woId;
+            var parentOrder = await workOrderRepository!.GetEntityAsync(
+                expression: src => src.Id == woId,
+                include: src => src.Include(src => src.Equipment!).ThenInclude(src => src.Organize!).Include(src => src.Components!).ThenInclude(src => src.ElementEntities!));
+
+            if (parentOrder.Components!.Any(src => src.ElementEntities!.FirstOrDefault(src => src.Status != ElementEntityStatus.出库 && src.Status != ElementEntityStatus.下机) != null))
+                return new { success = false, message = "工件状态为出库或下机，才能创建机台更换单" };
+
+            await fgmsDbContext!.BeginTrans();
+            try
+            {
+                string orderNum = (string)paramJson.orderNum;
+                var ecOrder = new WorkOrder
+                {
+                    Pid = woId,
+                    EquipmentId = (int)paramJson.newEquipmentId,
+                    UserInfoId = (int)paramJson.userInfoId,
+                    OrderNo = orderNum,
+                    Priority = WorkOrderPriority.高,
+                    Type = WorkOrderType.机台更换,
+                    MaterialNo = parentOrder.MaterialNo,
+                    MaterialSpec = parentOrder.MaterialSpec,
+                    Status = WorkOrderStatus.待审,
+                    Reason = (string)paramJson.reason
+                };
+                workOrderRepository.AddEntity(ecOrder);
+                parentOrder.Status = WorkOrderStatus.挂起;
+                workOrderRepository.UpdateEntity(parentOrder, new Expression<Func<WorkOrder, object>>[] { src => src.Status });
+                bool success = await fgmsDbContext.SaveChangesAsync() > 0;
+                await fgmsDbContext.CommitTrans();
+                return new { success, message = success ? $"已创建机台更换单：{orderNum}" : "机台更换单创建失败" };
             }
             catch (Exception ex)
             {

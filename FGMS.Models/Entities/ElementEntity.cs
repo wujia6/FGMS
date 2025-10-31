@@ -31,6 +31,8 @@ namespace FGMS.Models.Entities
         public float UseDuration { get; set; }
         public string? Remark { get; set; }
         public string? Position { get; set; }
+        public DiscardReason? DiscardBy { get; set; }
+        public DateTime? DiscardTime { get; set; }
         public virtual Element? Element { get; set; }
         public virtual Component? Component { get; set; }
         public virtual CargoSpace? CargoSpace { get; set; }
@@ -67,6 +69,8 @@ namespace FGMS.Models.Entities
             builder.Property(x => x.UseDuration).HasDefaultValue(0);
             builder.Property(x => x.Remark).HasMaxLength(100);
             builder.Property(x => x.Position).HasMaxLength(10);
+            builder.Property(x => x.DiscardBy);
+            builder.Property(x => x.DiscardTime);
             builder.HasOne(x => x.Element).WithMany(x => x.ElementEntities).HasForeignKey(x => x.ElementId).OnDelete(DeleteBehavior.Cascade);
             builder.HasOne(x => x.Component).WithMany(x => x.ElementEntities).HasForeignKey(x => x.ComponentId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
             builder.HasOne(x => x.CargoSpace).WithMany(x => x.ElementEntities).HasForeignKey(x => x.CargoSpaceId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);

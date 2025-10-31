@@ -36,6 +36,8 @@
         public decimal? UseDuration { get; set; }
         public string? Remark { get; set; }
         public string? Position { get; set; }
+        public string? DiscardBy { get; set; }
+        public DateTime? DiscardTime { get; set; }
         //public ElementDto? ElementDto { get; set; }
     }
 }

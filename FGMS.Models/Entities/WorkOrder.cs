@@ -20,9 +20,13 @@ namespace FGMS.Models.Entities
         public string? Remark { get; set; }
         public string AgvTaskCode { get; set; }
         public string AgvStatus { get; set; }
+        public string? Reason { get; set; }
+        public int? RenovateorId { get; set; }
+
         public virtual Equipment? Equipment { get; set; }
         public virtual UserInfo? UserInfo { get; set; }
         public virtual WorkOrder? Parent { get; set; }
+        public virtual UserInfo? Renovateor { get; set; }
         public virtual IEnumerable<WorkOrderStandard>? WorkOrderStandards { get; set; }
         public virtual IEnumerable<Component>? Components { get; set; }
         public virtual IEnumerable<WorkOrder>? Childrens { get; set; }
@@ -46,9 +50,12 @@ namespace FGMS.Models.Entities
             builder.Property(x => x.Remark).HasMaxLength(200);
             builder.Property(x => x.AgvTaskCode).IsRequired().HasMaxLength(20).HasDefaultValue(Guid.NewGuid().ToString("N")[..16]);
             builder.Property(x => x.AgvStatus).IsRequired().HasMaxLength(20).HasDefaultValue("execute");
+            builder.Property(x => x.Reason).HasMaxLength(200);
+            builder.Property(x => x.RenovateorId);
             builder.HasOne(x => x.Parent).WithMany(x => x.Childrens).HasForeignKey(x => x.Pid).OnDelete(DeleteBehavior.Restrict);
             builder.HasOne(x => x.Equipment).WithMany(x => x.WorkOrders).HasForeignKey(x => x.EquipmentId).OnDelete(DeleteBehavior.Cascade);
             builder.HasOne(x => x.UserInfo).WithMany(x => x.WorkOrders).HasForeignKey(x => x.UserInfoId).OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne(x => x.Renovateor).WithMany().HasForeignKey(x => x.RenovateorId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);// Renovateor不建立反向导航属性
         }
     }
 }

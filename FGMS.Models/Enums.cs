@@ -16,7 +16,8 @@
     {
         砂轮申领 = 1,
         砂轮返修 = 2,
-        砂轮退仓 = 3
+        砂轮退仓 = 3,
+        机台更换 = 4
     }
 
     public enum WorkOrderStatus
@@ -34,7 +35,8 @@
         工单结束 = 10,
         AGV收料 = 11,
         呼叫AGV = 12,
-        取消 = 13
+        取消 = 13,
+        挂起 = 14
     }
 
     public enum WorkOrderPriority
@@ -53,6 +55,15 @@
         下机 = 4,
         返修 = 5,
         报废 = 6
+    }
+
+    public enum DiscardReason
+    {
+        调机报废 = 1,
+        正常损耗 = 2,
+        来料异常 = 3,
+        标准变更 = 4,
+        存储异常 = 5
     }
 
     public enum LogType

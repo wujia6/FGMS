@@ -21,6 +21,8 @@
         public string? Remark { get; set; }
         public string? AgvTaskCode { get; set; }
         public string? AgvStatus { get; set; }
+        public string? Reason { get; set; }
+        public string? RenovateorName { get; set; }
         public List<WorkOrderDto>? ChildrenDtos { get; set; }
         public List<ComponentDto>? ComponentDtos { get; set; }
         public List<StandardDto>? StandardDtos { get; set; }

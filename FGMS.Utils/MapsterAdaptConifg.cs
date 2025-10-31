@@ -64,6 +64,7 @@ namespace FGMS.Utils
                 .Map(dest => dest.CargoSpaceCode, src => src.CargoSpace != null ? src.CargoSpace!.Code : string.Empty)
                 .Map(dest => dest.CargoSpaceName, src => src.CargoSpace != null ? src.CargoSpace!.Name : string.Empty)
                 .Map(dest => dest.CargoSpaceQuantity, src => src.CargoSpace != null ? src.CargoSpace!.Quantity : new int?())
+                .Map(dest => dest.DiscardBy, src => src.DiscardBy != null ? Enum.GetName(typeof(DiscardReason), src.DiscardBy.Value) : string.Empty)
                 .IgnoreNullValues(true);
 
             config.ForType<Component, ComponentDto>()
@@ -89,6 +90,7 @@ namespace FGMS.Utils
                 .Map(dest => dest.Type, src => Enum.GetName(typeof(WorkOrderType), src.Type))
                 .Map(dest => dest.Priority, src => Enum.GetName(typeof(WorkOrderPriority), src.Priority))
                 .Map(dest => dest.Status, src => Enum.GetName(typeof(WorkOrderStatus), src.Status))
+                .Map(dest => dest.RenovateorName, src => src.Renovateor != null ? src.Renovateor.Name : string.Empty)
                 .Map(dest => dest.StandardDtos, src => src.WorkOrderStandards != null? src.WorkOrderStandards!.Select(s => s.Standard) : null)
                 .Map(dest => dest.ComponentDtos, src => src.Components)
                 .Map(dest => dest.ChildrenDtos, src => src.Childrens)
