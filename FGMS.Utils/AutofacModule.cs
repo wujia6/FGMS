@@ -1,6 +1,7 @@
 ﻿using Autofac;
 using FGMS.Core.EfCore.Implements;
 using FGMS.Core.EfCore.Interfaces;
+using FGMS.Mx.Core;
 
 namespace FGMS.Utils
 {
@@ -24,6 +25,21 @@ namespace FGMS.Utils
 
                 //注册实体应用服务
                 builder.RegisterAssemblyTypes(ApplicationFactory.GetAssembly("FGMS.Services"))
+                    .Where(tp => tp.Name.EndsWith("Service") && !tp.IsInterface && !tp.IsAbstract)
+                    .AsImplementedInterfaces()
+                    .InstancePerLifetimeScope();
+
+                //墨心数据库上下文注入
+                builder.RegisterType<MxDbContext>().As<IMxDbContext>().InstancePerLifetimeScope();
+
+                //墨心仓储服务注入
+                builder.RegisterAssemblyTypes(ApplicationFactory.GetAssembly("FGMS.Mx.Repositories"))
+                    .Where(tp => tp.Name.EndsWith("Repository") && !tp.IsInterface && !tp.IsAbstract)
+                    .AsImplementedInterfaces()
+                    .InstancePerLifetimeScope();
+
+                //墨心应用服务注入
+                builder.RegisterAssemblyTypes(ApplicationFactory.GetAssembly("FGMS.Mx.Services"))
                     .Where(tp => tp.Name.EndsWith("Service") && !tp.IsInterface && !tp.IsAbstract)
                     .AsImplementedInterfaces()
                     .InstancePerLifetimeScope();

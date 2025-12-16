@@ -2,7 +2,6 @@
 using FGMS.Models.Entities;
 using FGMS.Services.Interfaces;
 using MapsterMapper;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

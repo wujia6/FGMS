@@ -29,6 +29,8 @@
   <ItemGroup>
     <ProjectReference Include="..\FGMS.Core\FGMS.Core.csproj" />
     <ProjectReference Include="..\FGMS.Models\FGMS.Models.csproj" />
+    <ProjectReference Include="..\FGMS.Mx.Models\FGMS.Mx.Models.csproj" />
+    <ProjectReference Include="..\FGMS.Mx.Services\FGMS.Mx.Services.csproj" />
     <ProjectReference Include="..\FGMS.Services\FGMS.Services.csproj" />
     <ProjectReference Include="..\FGMS.Utils\FGMS.Utils.csproj" />
   </ItemGroup>

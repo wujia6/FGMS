@@ -1,4 +1,5 @@
 ﻿using System.Linq.Expressions;
+using FGMS.Core.EfCore.Implements;
 using FGMS.Core.EfCore.Interfaces;
 using FGMS.Models;
 using FGMS.Models.Entities;
@@ -80,7 +81,10 @@ namespace FGMS.Services.Implements
                 //删除组件
                 componentRepository.DeleteEntity(cmpEntity);
                 bool success = await context.SaveChangesAsync() > 0;
-                await context.CommitTrans();
+                if (success)
+                    await context.CommitTrans();
+                else
+                    await context.RollBackTrans();
                 return new { success, message = success ? "拆分入库成功" : "拆分入库失败" };
             }
             catch (Exception ex)

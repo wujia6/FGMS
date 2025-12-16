@@ -78,30 +78,24 @@ namespace FGMS.PC.Api.Controllers
         public async Task<dynamic> ListAsync(
             int? pageIndex, int? pageSize, string? material, string? code, string? elementMaterialNo, string? modal, string? category, string? status, bool? isGroup, DateTime? startDate, DateTime? endDate)
         {
-            var expression = ExpressionBuilder.GetTrue<ElementEntity>();
-            if (!string.IsNullOrEmpty(material))
-                expression = expression.And(src => src.MaterialNo.Contains(material));
-            if (!string.IsNullOrEmpty(code))
-                expression = expression.And(src => src.Code!.Contains(code));
-            if (!string.IsNullOrEmpty(elementMaterialNo))
-                expression = expression.And(src => src.MaterialNo.Contains(elementMaterialNo));
-            if (!string.IsNullOrEmpty(modal))
-                expression = expression.And(src => src.Element!.ModalNo.Contains(modal));
-            if (!string.IsNullOrEmpty(category))
-                expression = expression.And(src => src.Element!.Category == (ElementCategory)Enum.Parse(typeof(ElementCategory), category));
-            if (!string.IsNullOrEmpty(status))
-                expression = expression.And(src => src.Status == (ElementEntityStatus)Enum.Parse(typeof(ElementEntityStatus), status));
-            if (isGroup.HasValue)
-                expression = expression.And(src => src.IsGroup == isGroup.Value);
-            if (startDate.HasValue && endDate.HasValue)
-                expression = expression.And(src => src.DiscardTime >= startDate.Value && src.DiscardTime <= endDate.Value.AddHours(24));
-            var entities = (await elementEntityService.ListAsync(
-                expression, 
-                include: src => src.Include(src => src.Element!).ThenInclude(src => src.Brand!).Include(src => src.Component!).ThenInclude(src => src.WorkOrder!).Include(src => src.CargoSpace!))).OrderByDescending(src => src.Id)
-                .ToList();
-            int total = entities.Count;
+            var expression = ExpressionBuilder.GetTrue<ElementEntity>()
+                .AndIf(!string.IsNullOrEmpty(material), src => src.MaterialNo.Contains(material!))
+                .AndIf(!string.IsNullOrEmpty(code), src => src.Code!.Contains(code!))
+                .AndIf(!string.IsNullOrEmpty(elementMaterialNo), src => src.MaterialNo.Contains(elementMaterialNo!))
+                .AndIf(!string.IsNullOrEmpty(modal), src => src.Element!.ModalNo.Contains(modal!))
+                .AndIf(!string.IsNullOrEmpty(category), src => src.Element!.Category == Enum.Parse<ElementCategory>(category!))
+                .AndIf(!string.IsNullOrEmpty(status), src => src.Status == Enum.Parse<ElementEntityStatus>(status!))
+                .AndIf(isGroup.HasValue, src => src.IsGroup == isGroup!.Value)
+                .AndIf(startDate.HasValue && endDate.HasValue, src => src.DiscardTime >= startDate!.Value && src.DiscardTime <= endDate!.Value.AddHours(24));
+            var query = elementEntityService.GetQueryable(
+                expression,
+                include: src => src.Include(src => src.Element!).ThenInclude(src => src.Brand!).Include(src => src.Component!).ThenInclude(src => src.WorkOrder!).Include(src => src.CargoSpace!))
+                .OrderByDescending(src => src.Id)
+                .AsNoTracking();
+            int total = await query.CountAsync();
             if (pageIndex.HasValue && pageSize.HasValue)
-                entities = entities.Skip((pageIndex.Value - 1) * pageSize.Value).Take(pageSize.Value).ToList();
+                query = query.Skip((pageIndex.Value - 1) * pageSize.Value).Take(pageSize.Value);
+            var entities = await query.ToListAsync();
             return new { total, rows = mapper.Map<List<ElementEntityDto>>(entities) };
         }
 
@@ -111,28 +105,28 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="standardId">标准ID</param>
         /// <returns></returns>
         [HttpGet("listbystandard")]
-        public async Task<dynamic> ListByStandardAsync(int standardId)
+        public async Task<StandardElementsResult> ListByStandardAsync(int standardId)
         {
             var std = await standardService.ModelAsync(expression: src => src.Id == standardId);
-
             if (std is null)
-                return new { success = false, message = "标准不存在" };
+                return new StandardElementsResult { Success = false, Message = "标准不存在" };
 
-            var mainEntity = std.MainElementId.HasValue ? await elementService.ModelAsync(expression: src => src.Id == std.MainElementId!.Value, include: src => src.Include(src => src.ElementEntities!)) : null;
-            var firstEntity = std.FirstElementId.HasValue ? await elementService.ModelAsync(expression: src => src.Id == std.FirstElementId!.Value, include: src => src.Include(src => src.ElementEntities!)) : null;
-            var secondEntity = std.SecondElementId.HasValue ? await elementService.ModelAsync(expression: src => src.Id == std.SecondElementId, include: src => src.Include(src => src.ElementEntities!)) : null;
-            var thirdEntity = std.ThirdElementId.HasValue ? await elementService.ModelAsync(expression: src => src.Id == std.ThirdElementId, include: src => src.Include(src => src.ElementEntities!)) : null;
-            var fourthEntity = std.FourthElementId.HasValue ? await elementService.ModelAsync(expression: src => src.Id == std.FourthElementId, include: src => src.Include(src => src.ElementEntities!)) : null;
-            var fifthEntity = std.FirstElementId.HasValue ? await elementService.ModelAsync(expression: src => src.Id == std.FifthElementId, include: src => src.Include(src => src.ElementEntities!)) : null;
+            var elementIds = GetElementIds(std);
+            if (!elementIds.Any())
+                return new StandardElementsResult { Success = true };
 
-            return new 
+            var elements = await elementService.ListAsync(expression: src => elementIds.Contains(src.Id),include: src => src.Include(src => src.ElementEntities!));
+            var elementDict = elements.ToDictionary(x => x.Id, x => x);
+
+            return new StandardElementsResult
             {
-                mains = mainEntity is null || mainEntity.ElementEntities is null || !mainEntity.ElementEntities.Any() ? null : mapper.Map<List<ElementEntityDto>>(mainEntity.ElementEntities!.Where(src => src.IsGroup == false && src.Status == ElementEntityStatus.在库)), 
-                firsts = firstEntity is null || firstEntity.ElementEntities is null || !firstEntity.ElementEntities.Any() ? null : mapper.Map<List<ElementEntityDto>>(firstEntity.ElementEntities!.Where(src => src.IsGroup == false && src.Status == ElementEntityStatus.在库)),
-                seconds = secondEntity is null || secondEntity.ElementEntities is null || !secondEntity.ElementEntities.Any() ? null : mapper.Map<List<ElementEntityDto>>(secondEntity.ElementEntities!.Where(src => src.IsGroup == false && src.Status == ElementEntityStatus.在库)),
-                thirds = thirdEntity is null || thirdEntity.ElementEntities is null || !thirdEntity.ElementEntities.Any() ? null : mapper.Map<List<ElementEntityDto>>(thirdEntity.ElementEntities!.Where(src => src.IsGroup == false && src.Status == ElementEntityStatus.在库)),
-                fourths = fourthEntity is null || fourthEntity.ElementEntities is null || !fourthEntity.ElementEntities.Any() ? null : mapper.Map<List<ElementEntityDto>>(fourthEntity.ElementEntities!.Where(src => src.IsGroup == false && src.Status == ElementEntityStatus.在库)),
-                fifths = fifthEntity is null || fifthEntity.ElementEntities is null || !fifthEntity.ElementEntities.Any() ? null : mapper.Map<List<ElementEntityDto>>(fifthEntity.ElementEntities!.Where(src => src.IsGroup == false && src.Status == ElementEntityStatus.在库))
+                Success = true,
+                Mains = GetElementEntitiesDto(elementDict, std.MainElementId),
+                Firsts = GetElementEntitiesDto(elementDict, std.FirstElementId),
+                Seconds = GetElementEntitiesDto(elementDict, std.SecondElementId),
+                Thirds = GetElementEntitiesDto(elementDict, std.ThirdElementId),
+                Fourths = GetElementEntitiesDto(elementDict, std.FourthElementId),
+                Fifths = GetElementEntitiesDto(elementDict, std.FifthElementId)
             };
         }
 
@@ -216,5 +210,27 @@ namespace FGMS.PC.Api.Controllers
                 await trackLogService.AddAsync(new TrackLog { Content = $"{entity.Code} 工件已删除" });
             return new { success, message = success ? "删除成功" : "删除失败" };
         }
+
+        private List<ElementEntityDto>? GetElementEntitiesDto(Dictionary<int, Element> elementDict,int? elementId)
+        {
+            if (!elementId.HasValue || !elementDict.TryGetValue(elementId.Value, out var element))
+                return null;
+            var entities = element.ElementEntities?.Where(src => src.IsGroup == false && src.Status == ElementEntityStatus.在库).ToList();
+            return entities is null || !entities.Any() ? null : mapper.Map<List<ElementEntityDto>>(entities);
+        }
+
+        private static List<int> GetElementIds(Standard std) => new[]
+        {
+            std.MainElementId,
+            std.FirstElementId,
+            std.SecondElementId,
+            std.ThirdElementId,
+            std.FourthElementId,
+            std.FifthElementId
+        }
+        .Where(id => id.HasValue)
+        .Select(id => id!.Value)
+        .Distinct()
+        .ToList();
     }
 }

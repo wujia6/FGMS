@@ -3,6 +3,7 @@ using System.Text;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using FGMS.Models;
+using FGMS.Mx.Core;
 using FGMS.PC.Api.Middleware;
 using FGMS.Utils;
 using MapsterMapper;

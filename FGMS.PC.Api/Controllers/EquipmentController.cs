@@ -7,6 +7,7 @@ using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Extensions;
 
 namespace FGMS.PC.Api.Controllers
 {
@@ -61,8 +62,9 @@ namespace FGMS.PC.Api.Controllers
         [HttpGet("mountList")]
         public async Task<dynamic> MountListAsync(string? eeCode, string? equCode, string areaCode = "A")
         {
-            //var expression = ExpressionBuilder.GetTrue<Equipment>().And(src => src.Code.Contains(areaCode));
-            var equipments = await equipmentService.ListAsync(expression: src => src.Code.Contains(areaCode), include: src => src.Include(src => src.WorkOrders!).ThenInclude(src => src.Components!).ThenInclude(src => src.ElementEntities!));
+            var equipments = await equipmentService.ListAsync(
+                expression: src => src.Code.Contains(areaCode), 
+                include: src => src.Include(src => src.ProductionOrders!).ThenInclude(src => src.WorkOrder!).ThenInclude(src => src.Components!).ThenInclude(src => src.ElementEntities!));
             var dtos = mapper.Map<List<EquipmentDto>>(equipments);
             var equDtos = dtos.Select(e => new
             {
@@ -71,7 +73,7 @@ namespace FGMS.PC.Api.Controllers
                 e.Code,
                 e.Enabled,
                 e.Mount,
-                WorkOrderDtos = e.WorkOrderDtos!.Where(wo => wo.Status == "机台接收")
+                WorkOrderDtos = e.ProductionOrderDtos!.Select(src => src.WorkOrderDto).OfType<WorkOrderDto>().Where(src => src.Status == "机台接收")
             });
 
             if (!string.IsNullOrEmpty(eeCode))
@@ -84,7 +86,7 @@ namespace FGMS.PC.Api.Controllers
         }
 
         /// <summary>
-        /// 机台实时
+        /// 机台实时砂轮工单
         /// </summary>
         /// <param name="areaCode">区域编码</param>
         /// <param name="mount">是否挂载</param>
@@ -92,15 +94,12 @@ namespace FGMS.PC.Api.Controllers
         [HttpGet("imminentList")]
         public async Task<dynamic> ImminentListAsync(string? areaCode, bool? mount)
         {
-            var expression = ExpressionBuilder.GetTrue<Equipment>();
+            var expression = ExpressionBuilder.GetTrue<Equipment>()
+                .AndIf(!string.IsNullOrEmpty(areaCode), src => src.Code.Contains(areaCode!))
+                .AndIf(mount.HasValue, src => src.Mount == mount!.Value);
 
-            if (!string.IsNullOrEmpty(areaCode))
-                expression = expression.And(src => src.Code.Contains(areaCode));
-
-            if (mount.HasValue)
-                expression = expression.And(src => src.Mount == mount.Value);
-
-            var equipments = await equipmentService.ListAsync(expression, include: src => src.Include(src => src.WorkOrders!).ThenInclude(src => src.Components!).ThenInclude(src => src.ElementEntities!));
+            var equipments = await equipmentService.ListAsync(
+                expression, include: src => src.Include(src => src.ProductionOrders!).ThenInclude(src => src.WorkOrder!).ThenInclude(src => src.Components!).ThenInclude(src => src.ElementEntities!));
 
             var returnList = new List<dynamic>();
             foreach (var equipment in equipments)
@@ -108,15 +107,14 @@ namespace FGMS.PC.Api.Controllers
                 string currentUpper = string.Empty;
                 dynamic receiveList = new List<string>();
                 dynamic downList = new List<string>();
-                if (equipment.WorkOrders != null && equipment.WorkOrders.Any())
+                if (equipment.ProductionOrders is not null && equipment.ProductionOrders.Any())
                 {
-                    var wos = equipment.WorkOrders.Where(src => src.Status == WorkOrderStatus.机台接收);
-                    if (wos != null && wos.Any())
+                    var wos = equipment.ProductionOrders!.Where(src => src.WorkOrder != null && src.WorkOrder.Status == WorkOrderStatus.机台接收).Select(src => src.WorkOrder!);
+                    if (wos.Any())
                     {
                         var cmps = wos.SelectMany(src => src.Components!);
                         var ees = cmps.SelectMany(src => src.ElementEntities!);
-
-                        if(cmps != null && cmps.Any() && ees != null && ees.Any())
+                        if (cmps != null && cmps.Any() && ees != null && ees.Any())
                         {
                             currentUpper = ees.FirstOrDefault(src => src.Status == ElementEntityStatus.上机) == null ? string.Empty : ees.FirstOrDefault(src => src.Status == ElementEntityStatus.上机)!.Component!.WorkOrder!.OrderNo;
                             receiveList = wos.Select(src => src.OrderNo);
@@ -128,6 +126,50 @@ namespace FGMS.PC.Api.Controllers
                 returnList.Add(equ);
             }
             return new { total = returnList.Count, rows = returnList };
+        }
+
+        /// <summary>
+        /// 机台实时制令单
+        /// </summary>
+        /// <param name="areaCode">区域</param>
+        /// <returns></returns>
+        [HttpGet("imminentRecords")]
+        public async Task<IActionResult> ImminentRecordsAsync(string areaCode = "A")
+        {
+            var machines = await equipmentService.ListAsync(
+                expression: src => src.Code.Contains(areaCode),
+                include: src => src
+                    .Include(src => src.ProductionOrders!.Where(src => src.Status != ProductionOrderStatus.已排配 && src.Status != ProductionOrderStatus.已完成)).ThenInclude(src => src.MaterialIssueOrders!)
+                    .Include(src => src.ProductionOrders!).ThenInclude(src => src.WorkOrder!));
+
+            return Ok(machines.Select(machine => new
+            {
+                machine.Name,
+                machine.Code,
+                machine.Enabled,
+                ProductionOrders = machine.ProductionOrders!.Select(po => new
+                {
+                    po.Id,
+                    po.OrderNo,
+                    //po.MaterialName,
+                    //po.MaterialSpec,
+                    //po.Quantity,
+                    Status = po.Status.GetDisplayName(),
+                    po.WorkHours,
+                    MaterialIssueOrders = po.MaterialIssueOrders!.Select(mio => new
+                    {
+                        mio.Id,
+                        mio.OrderNo,
+                        Status = mio.Status.GetDisplayName()
+                    }),
+                    WorkOrder = po.WorkOrder == null ? null : new
+                    {
+                        po.WorkOrder.Id,
+                        po.WorkOrder.OrderNo,
+                        Status = po.WorkOrder.Status.GetDisplayName()
+                    }
+                })
+            }));
         }
 
         /// <summary>

@@ -22,5 +22,10 @@ namespace FGMS.Core.EfCore.Interfaces
         DbSet<TrackLog> TrackLogs { get; set; }
         DbSet<ComponentLog> ComponentLogs { get; set; }
         DbSet<AgvTaskSync> AgvTaskSyncs { get; set; }
+        DbSet<ProductionOrder> ProductionOrders { get; set; }
+        DbSet<MaterialIssueOrder> MaterialIssueOrders { get; set; }
+        DbSet<WorkOrderStandard> WorkOrderStandards { get; set; }
+        DbSet<EquipmentChangeOrder> EquipmentChangeOrders { get; set; }
+        DbSet<MaterialDiameter> MaterialDiameters { get; set; }
     }
 }

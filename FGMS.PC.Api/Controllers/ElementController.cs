@@ -54,29 +54,21 @@ namespace FGMS.PC.Api.Controllers
         public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize, string? category, string? param1, string? param2, string? param3, string? param4, string? param5, string? param6, string? param7, string? param8)
         {
             //这个地方需要（品牌、料号、直径、砂轮宽、角度、内孔直径、砂轮粒度）
-            var expression = ExpressionBuilder.GetTrue<Element>();
-            if (!string.IsNullOrEmpty(category))
-                expression = expression.And(src => src.Category == (ElementCategory)Enum.Parse(typeof(ElementCategory), category));
-            if (!string.IsNullOrEmpty(param1))
-                expression = expression.And(src => src.Brand!.Name.Contains(param1));
-            if (!string.IsNullOrEmpty(param2))
-                expression = expression.And(src => src.MaterialNo.Contains(param2));
-            if (!string.IsNullOrEmpty(param3))
-                expression = expression.And(src => src.Diameter!.Contains(param3));
-            if (!string.IsNullOrEmpty(param4))
-                expression = expression.And(src => src.WheelWidth!.Contains(param4));
-            if (!string.IsNullOrEmpty(param5))
-                expression = expression.And(src => src.Angle!.Contains(param5));
-            if (!string.IsNullOrEmpty(param6))
-                expression = expression.And(src => src.InnerBoreDiameter!.Contains(param6));
-            if (!string.IsNullOrEmpty(param7))
-                expression = expression.And(src => src.Granularity!.Contains(param7));
-            if (!string.IsNullOrEmpty(param8))
-                expression = expression.And(src => src.Granularity!.Contains(param8));
-            var entities = (await elementService.ListAsync(expression, include: src => src.Include(src => src.Brand!))).OrderBy(src => src.MaterialNo).ToList();
-            int total = entities.Count;
+            var expression = ExpressionBuilder.GetTrue<Element>()
+                .AndIf(!string.IsNullOrEmpty(category), src => src.Category == Enum.Parse<ElementCategory>(category))
+                .AndIf(!string.IsNullOrEmpty(param1), src => src.Brand!.Name.Contains(param1))
+                .AndIf(!string.IsNullOrEmpty(param2), src => src.MaterialNo.Contains(param2))
+                .AndIf(!string.IsNullOrEmpty(param3), src => src.Diameter!.Contains(param3))
+                .AndIf(!string.IsNullOrEmpty(param4), src => src.WheelWidth!.Contains(param4))
+                .AndIf(!string.IsNullOrEmpty(param5), src => src.Angle!.Contains(param5))
+                .AndIf(!string.IsNullOrEmpty(param6), src => src.InnerBoreDiameter!.Contains(param6))
+                .AndIf(!string.IsNullOrEmpty(param7), src => src.Granularity!.Contains(param7))
+                .AndIf(!string.IsNullOrEmpty(param8), src => src.Granularity!.Contains(param8));
+            var query = elementService.GetQueryable(expression, include: src => src.Include(src => src.Brand!)).OrderBy(src => src.MaterialNo).AsNoTracking();
+            int total = await query.CountAsync();
             if (pageIndex.HasValue && pageSize.HasValue)
-                entities = entities.Skip((pageIndex.Value - 1) * pageSize.Value).Take(pageSize.Value).ToList();
+                query = query.Skip((pageIndex.Value - 1) * pageSize.Value).Take(pageSize.Value);
+            var entities = await query.ToListAsync();
             return new { total, rows = mapper.Map<List<ElementDto>>(entities) };
         }
 
@@ -92,21 +84,21 @@ namespace FGMS.PC.Api.Controllers
         [HttpGet("storagelist")]
         public async Task<dynamic> StorageListAsync(int? pageIndex, int? pageSize, string? category, string? material, string? modal, string? spec)
         {
-            var expression = ExpressionBuilder.GetTrue<Element>();
-            if (!string.IsNullOrEmpty(category))
-                expression = expression.And(src => src.Category == (ElementCategory)Enum.Parse(typeof(ElementCategory), category));
-            if (!string.IsNullOrEmpty(material))
-                expression = expression.And(src => src.MaterialNo.Contains(material));
-            if (!string.IsNullOrEmpty(modal))
-                expression = expression.And(src => src.ModalNo.Contains(modal));
-            if (!string.IsNullOrEmpty(spec))
-                expression = expression.And(src => src.Spec.Contains(spec));
-            var entities = await elementService.ListAsync(
-                expression, include: src => src.Include(src => src.Brand!).Include(src => src.ElementEntities!.Where(dst => dst.Status != ElementEntityStatus.报废)).ThenInclude(src => src.CargoSpace!));
-            int total = entities.Count;
+            var expression = ExpressionBuilder.GetTrue<Element>()
+                .AndIf(!string.IsNullOrEmpty(category), src => src.Category == Enum.Parse<ElementCategory>(category))
+                .AndIf(!string.IsNullOrEmpty(material), src => src.MaterialNo.Contains(material))
+                .AndIf(!string.IsNullOrEmpty(modal), src => src.ModalNo.Contains(modal))
+                .AndIf(!string.IsNullOrEmpty(spec), src => src.Spec.Contains(spec));
+            var query = elementService.GetQueryable(
+                expression,
+                include: src => src.Include(src => src.Brand!).Include(src => src.ElementEntities!.Where(dst => dst.Status != ElementEntityStatus.报废)).ThenInclude(dst => dst.CargoSpace!))
+                .OrderByDescending(src => src.Id)
+                .AsNoTracking();
+            int total = await query.CountAsync();
             if (pageIndex.HasValue && pageSize.HasValue)
-                entities = entities.OrderByDescending(src => src.Id).Skip((pageIndex.Value - 1) * pageSize.Value).Take(pageSize.Value).ToList();
-            return new { total, rows = mapper.Map<List<ElementDto>>(entities.OrderByDescending(src => src.Id)) };
+                query = query.Skip((pageIndex.Value - 1) * pageSize.Value).Take(pageSize.Value);
+            var entities = await query.ToListAsync();
+            return new { total, rows = mapper.Map<List<ElementDto>>(entities) };
         }
 
         /// <summary>

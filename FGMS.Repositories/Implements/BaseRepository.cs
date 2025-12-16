@@ -1,6 +1,7 @@
 ﻿using System.Linq.Expressions;
 using FGMS.Core.EfCore.Interfaces;
 using FGMS.Repositories.Interfaces;
+using FGMS.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
 
@@ -61,6 +62,17 @@ namespace FGMS.Repositories.Implements
             if (expression != null)
                 query = query.Where(expression);
             return await query.ToListAsync();
+        }
+
+        public IQueryable<T> GetQueryable(Expression<Func<T, bool>>? expression = null, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null)
+        {
+            //IQueryable<T> query = repository.Entities;  // 获取初始 IQueryable，不修改原始属性
+            //if (include != null)
+            //    query = include(query);
+            //if (expression != null)
+            //    query = query.Where(expression);
+            //return query;
+            return new QueryableBuilder<T>(repository.Entities).Where(expression).Include(include).Build();
         }
     }
 }

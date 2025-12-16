@@ -8,6 +8,7 @@ using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Extensions;
 
 namespace FGMS.Android.Api.Controllers
 {
@@ -45,10 +46,9 @@ namespace FGMS.Android.Api.Controllers
         [HttpGet]
         public async Task<dynamic> ScanAsync(string code, string? status)
         {
-            var expression = ExpressionBuilder.GetTrue<ElementEntity>().And(src => src.Code!.Equals(code));
-
-            if (!string.IsNullOrEmpty(status))
-                expression = expression.And(src => src.Status == (ElementEntityStatus)Enum.Parse(typeof(ElementEntityStatus), status));
+            var expression = ExpressionBuilder.GetTrue<ElementEntity>()
+                .And(src => src.Code!.Equals(code))
+                .AndIf(!string.IsNullOrEmpty(status), src => src.Status.GetDisplayName() == status);
 
             var entity = await elementEntityService.ModelAsync(expression, include: src => src.Include(src => src.Element!));
 

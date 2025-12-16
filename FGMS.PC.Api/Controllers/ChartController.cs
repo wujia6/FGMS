@@ -88,7 +88,7 @@ namespace FGMS.PC.Api.Controllers
                 expression = expression.And(src => src.Type == (WorkOrderType)Enum.Parse(typeof(WorkOrderType), type));
             if (!string.IsNullOrEmpty(status))
                 expression = expression.And(src => src.Status == (WorkOrderStatus)Enum.Parse(typeof(WorkOrderStatus), status));
-            var entities = await workOrderService.ListAsync(expression, include: src => src.Include(src => src.UserInfo!).Include(src => src.Equipment!));
+            var entities = await workOrderService.ListAsync(expression, include: src => src.Include(src => src.UserInfo!).Include(src => src.ProductionOrder!.Equipment!));
             entities = entities.OrderByDescending(src => src.Priority).ThenByDescending(src => src.RequiredDate).Take(count).ToList();
             return new { rows = mapper.Map<List<WorkOrderDto>>(entities) };
         }
@@ -102,11 +102,11 @@ namespace FGMS.PC.Api.Controllers
         {
             var orderEntities = (await workOrderService.ListAsync(
                 expression: src => 
-                                src.Type != WorkOrderType.机台更换 && src.Status != WorkOrderStatus.工单结束 && 
-                                (src.Status == WorkOrderStatus.待审 || src.Status == WorkOrderStatus.审核通过 || 
-                                src.Status == WorkOrderStatus.砂轮整备 || src.Status == WorkOrderStatus.参数修整 || 
-                                src.Status == WorkOrderStatus.整备完成 || src.Type == WorkOrderType.砂轮退仓 || src.Type == WorkOrderType.砂轮返修), 
-                include: src => src.Include(src => src.UserInfo!).Include(src => src.Equipment!)))
+                        src.Status != WorkOrderStatus.工单结束 && 
+                        (src.Status == WorkOrderStatus.待审 || src.Status == WorkOrderStatus.审核通过 || 
+                        src.Status == WorkOrderStatus.砂轮整备 || src.Status == WorkOrderStatus.参数修整 || 
+                        src.Status == WorkOrderStatus.整备完成 || src.Type == WorkOrderType.砂轮退仓 || src.Type == WorkOrderType.砂轮返修), 
+                    include: src => src.Include(src => src.UserInfo!).Include(src => src.ProductionOrder!.Equipment!)))
                 .OrderByDescending(src => src.Priority)
                 .ThenByDescending(src => src.RequiredDate)
                 .ToList();
@@ -125,7 +125,7 @@ namespace FGMS.PC.Api.Controllers
                                 src.Status != WorkOrderStatus.参数修整 && src.Status != WorkOrderStatus.整备完成 && 
                                 src.Status != WorkOrderStatus.待审 && src.Status != WorkOrderStatus.工单结束 &&
                                 src.Status != WorkOrderStatus.驳回 && src.Type == WorkOrderType.砂轮申领, 
-                include: src => src.Include(src => src.UserInfo!).Include(src => src.Equipment!));
+                include: src => src.Include(src => src.UserInfo!).Include(src => src.ProductionOrder!.Equipment!));
             orderEntities = orderEntities.OrderByDescending(src => src.CreateDate).ThenByDescending(src => src.Priority).ToList();
             return new { rows = mapper.Map<List<WorkOrderDto>>(orderEntities) };
         }

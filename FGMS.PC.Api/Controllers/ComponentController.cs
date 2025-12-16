@@ -128,16 +128,12 @@ namespace FGMS.PC.Api.Controllers
         [HttpGet("single")]
         public async Task<dynamic> SingleAsync(string eeCode, string? status)
         {
-            var expression = ExpressionBuilder.GetTrue<Component>().And(src => src.ElementEntities!.FirstOrDefault(src => src.Code!.Equals(eeCode)) != null);
-
-            if (!string.IsNullOrEmpty(status))
-                expression = expression.And(src => src.Status == (ElementEntityStatus)Enum.Parse(typeof(ElementEntityStatus), status));
-
+            var expression = ExpressionBuilder.GetTrue<Component>()
+                .And(src => src.ElementEntities!.FirstOrDefault(src => src.Code!.Equals(eeCode)) != null)
+                .AndIf(!string.IsNullOrEmpty(status), src => src.Status == Enum.Parse<ElementEntityStatus>(status!));
             var component = await componentService.ModelAsync(expression, include:src => src.Include(src => src.ElementEntities!).ThenInclude(src => src.Element!).Include(src => src.Standard!));
-
             if (component == null)
                 return new { success = false, message = "未找到相关标准组，或该标准组已出库" };
-
             return mapper.Map<ComponentDto>(component);
         }
 

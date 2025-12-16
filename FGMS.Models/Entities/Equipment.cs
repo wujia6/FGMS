@@ -12,7 +12,7 @@ namespace FGMS.Models.Entities
         public bool Enabled { get; set; }
         public bool Mount { get; set; }
         public virtual Organize? Organize { get; set; }
-        public virtual IEnumerable<WorkOrder>? WorkOrders { get; set; }
+        public virtual IEnumerable<ProductionOrder>? ProductionOrders { get; set; }
     }
 
     public class EquipmentConfig : IEntityTypeConfiguration<Equipment>

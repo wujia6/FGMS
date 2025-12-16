@@ -17,7 +17,7 @@
         砂轮申领 = 1,
         砂轮返修 = 2,
         砂轮退仓 = 3,
-        机台更换 = 4
+        //机台更换 = 4
     }
 
     public enum WorkOrderStatus
@@ -36,7 +36,8 @@
         AGV收料 = 11,
         呼叫AGV = 12,
         取消 = 13,
-        挂起 = 14
+        挂起 = 14,
+        机台变更 = 15
     }
 
     public enum WorkOrderPriority
@@ -73,5 +74,31 @@
         返修 = 3,
         上下机 = 4,
         其他 = 5
+    }
+
+    public enum ProductionOrderStatus
+    {
+        已排配 = 0,
+        待发料 = 1,
+        配送中 = 2,
+        已收料 = 3,
+        生产中 = 4,
+        已完成 = 5,
+        已暂停 = 6
+    }
+
+    public enum MioType
+    {
+        发料 = 1,
+        补料 = 2
+    }
+
+    public enum MioStatus
+    {
+        待备料 = 0,
+        分拣中 = 1,
+        待出库 = 2,
+        已出库 = 3,
+        已接收 = 4
     }
 }

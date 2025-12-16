@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\FGMS.Core\FGMS.Core.csproj" />
     <ProjectReference Include="..\FGMS.Models\FGMS.Models.csproj" />
+    <ProjectReference Include="..\FGMS.Utils\FGMS.Utils.csproj" />
   </ItemGroup>
 
 </Project>

@@ -8,6 +8,11 @@ namespace FGMS.Utils
 
         public static Expression<Func<T, bool>> GetFalse<T>() { return f => false; }
 
+        public static Expression<Func<T, bool>> AndIf<T>(this Expression<Func<T, bool>> expr, bool condition, Expression<Func<T, bool>> predicate)
+        {
+            return condition ? expr.And(predicate) : expr;
+        }
+
         public static Expression<Func<T, bool>> And<T>(this Expression<Func<T, bool>> first, Expression<Func<T, bool>> second)
         {
             return first.Compose(second, Expression.And);

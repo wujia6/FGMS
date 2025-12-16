@@ -50,15 +50,20 @@ namespace FGMS.PC.Api.Controllers
         [HttpGet("list")]
         public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize, int? organizeId, string? code)
         {
-            var expression = ExpressionBuilder.GetTrue<CargoSpace>();
-            if (organizeId.HasValue)
-                expression = expression.And(src => src.OrganizeId == organizeId);
-            if (!string.IsNullOrEmpty(code))
-                expression = expression.And(src => src.Code!.Contains(code));
-            var entities = await cargoSpaceService.ListAsync(expression, include: src => src.Include(src => src.Organize!).Include(src => src.Parent!).Include(src => src.Childrens!));
-            int total = entities.Count;
+            var expression = ExpressionBuilder.GetTrue<CargoSpace>()
+                .AndIf(organizeId.HasValue, src => src.OrganizeId == organizeId!.Value)
+                .AndIf(!string.IsNullOrEmpty(code), src => src.Code!.Contains(code!));
+
+            var query = cargoSpaceService.GetQueryable(
+                expression,
+                include: src => src.Include(src => src.Organize!).Include(src => src.Parent!).Include(src => src.Childrens!))
+                .OrderByDescending(x => x.Id)
+                .AsNoTracking();
+
+            int total = await query.CountAsync();
             if (pageIndex.HasValue && pageSize.HasValue)
-                entities = entities.Skip((pageIndex.Value - 1) * pageSize.Value).Take(pageSize.Value).ToList();
+                query = query.Skip((pageIndex.Value - 1) * pageSize.Value).Take(pageSize.Value);
+            var entities = await query.ToListAsync();
             return new { total, rows = mapper.Map<List<CargoSpaceDto>>(entities) };
         }
 
@@ -73,19 +78,20 @@ namespace FGMS.PC.Api.Controllers
         [HttpGet("details")]
         public async Task<dynamic> DetailsAsync(int? pageIndex, int? pageSize, string? cmpCode, string? stdCode)
         {
-            var expression = ExpressionBuilder.GetTrue<CargoSpace>();
-            if (!string.IsNullOrEmpty(cmpCode))
-                expression = expression.And(src => src.Components!.Any(src => src.Code!.Contains(cmpCode)));
-            if (!string.IsNullOrEmpty(stdCode))
-                expression = expression.And(src => src.Components!.Any(src => src.Standard!.Code.Contains(stdCode)));
+            var expression = ExpressionBuilder.GetTrue<CargoSpace>()
+                .AndIf(!string.IsNullOrEmpty(cmpCode), src => src.Components!.Any(src => src.Code!.Contains(cmpCode!)))
+                .AndIf(!string.IsNullOrEmpty(stdCode), src => src.Components!.Any(src => src.Standard!.Code.Contains(stdCode!)));
 
-            var records = await cargoSpaceService.ListAsync(
-                expression, include: src => src.Include(src => src.Organize!).Include(src => src.ElementEntities!).Include(src => src.Components!).ThenInclude(src => src.Standard!));
-            int total = records.Count;
+            var query = cargoSpaceService.GetQueryable(
+                expression,
+                include: src => src.Include(src => src.Organize!).Include(src => src.ElementEntities!).Include(src => src.Components!).ThenInclude(src => src.Standard!))
+                .OrderByDescending(x => x.Id)
+                .AsNoTracking();
 
+            int total = await query.CountAsync();
             if (pageIndex.HasValue && pageSize.HasValue)
-                records = records.Skip((pageIndex.Value - 1) * pageSize.Value).Take(pageSize.Value).ToList();
-
+                query = query.Skip((pageIndex.Value - 1) * pageSize.Value).Take(pageSize.Value);
+            var records =  await query.ToListAsync();
             return new { total, rows = mapper.Map<List<CargoSpaceDto>>(records) };
         }
 

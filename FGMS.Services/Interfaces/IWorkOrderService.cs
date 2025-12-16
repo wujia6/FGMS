@@ -16,8 +16,8 @@ namespace FGMS.Services.Interfaces
 
         public Task<dynamic> AuditAsync(dynamic paramJson);
 
-        public Task<dynamic> AuditPmcAsync(dynamic paramJson);
+        public Task<dynamic> MachineUpperAsync(int orderId);
 
-        public Task<dynamic> EquipmentChangeAsync(dynamic paramJson);
+        public Task<dynamic> MachineDownAsync(List<Component> components);
     }
 }

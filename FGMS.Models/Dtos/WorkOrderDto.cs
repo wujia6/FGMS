@@ -4,8 +4,10 @@
     {
         public int Id { get; set; }
         public int? Pid { get; set; }
-        public int EquipmentId { get; set; }
+        //public int EquipmentId { get; set; }
         public string? EquipmentCode { get; set; }
+        public int ProductionOrderId { get; set; }
+        public string? ProductionOrderNo { get; set; }
         public string? OrganizeCode { get; set; }
         public int UserInfoId { get; set; }
         public string? UserInfoName { get; set; }

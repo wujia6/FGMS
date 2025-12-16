@@ -23,6 +23,11 @@ namespace FGMS.Core.EfCore.Implements
         public DbSet<ComponentLog> ComponentLogs { get; set; } = default!;
         public DbSet<CargoSpace> CargoSpaces { get; set; } = default!;
         public DbSet<AgvTaskSync> AgvTaskSyncs { get; set; } = default!;
+        public DbSet<ProductionOrder> ProductionOrders { get; set; } = default!;
+        public DbSet<MaterialIssueOrder> MaterialIssueOrders { get; set; } = default!;
+        public DbSet<EquipmentChangeOrder> EquipmentChangeOrders { get; set; } = default!;
+        public DbSet<WorkOrderStandard> WorkOrderStandards { get; set; } = default!;
+        public DbSet<MaterialDiameter> MaterialDiameters { get; set; } = default!;
 
         public async Task<int> SaveChangesAsync() => await base.SaveChangesAsync();
         public async Task BeginTrans() => await base.Database.BeginTransactionAsync();

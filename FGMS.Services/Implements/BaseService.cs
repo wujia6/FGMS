@@ -57,5 +57,10 @@ namespace FGMS.Services.Implements
         {
             return repo.UpdateEntity(models, fields) && await context.SaveChangesAsync() > 0;
         }
+
+        public IQueryable<T> GetQueryable(Expression<Func<T, bool>>? expression = null, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null)
+        {
+            return repo.GetQueryable(expression, include);
+        }
     }
 }

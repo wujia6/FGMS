@@ -1,18 +1,14 @@
 ﻿using System.Linq.Dynamic.Core;
 using System.Linq.Expressions;
-using FGMS.Core.EfCore.Implements;
 using FGMS.Models;
 using FGMS.Models.Dtos;
 using FGMS.Models.Entities;
-using FGMS.Repositories.Interfaces;
 using FGMS.Services.Interfaces;
 using FGMS.Utils;
 using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Newtonsoft.Json;
 
 namespace FGMS.PC.Api.Controllers
 {
@@ -71,58 +67,28 @@ namespace FGMS.PC.Api.Controllers
         [HttpGet("list")]
         public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize, string? type, string? orderNo, string? equipmentCode, string? materialNo, string? status, DateTime? date)
         {
-            var expression = ExpressionBuilder.GetTrue<WorkOrder>();
-            if (!string.IsNullOrEmpty(type))
-                expression = expression.And(src => src.Type == (WorkOrderType)Enum.Parse(typeof(WorkOrderType), type));
-            if (!string.IsNullOrEmpty(orderNo))
-                expression = expression.And(src => src.OrderNo.Equals(orderNo));
-            if (!string.IsNullOrEmpty(equipmentCode))
-                expression = expression.And(src => src.Equipment!.Code.Equals(equipmentCode));
-            if (!string.IsNullOrEmpty(materialNo))
-                expression = expression.And(src => src.MaterialNo.Contains(materialNo));
-            if (!string.IsNullOrEmpty(status))
-                expression = expression.And(src => src.Status == (WorkOrderStatus)Enum.Parse(typeof(WorkOrderStatus), status));
-            if (date.HasValue)
-                expression = expression.And(src => src.CreateDate.Date == date.Value);
+            var expression = ExpressionBuilder.GetTrue<WorkOrder>()
+                .AndIf(!string.IsNullOrEmpty(type), src => src.Type == Enum.Parse<WorkOrderType>(type!))
+                .AndIf(!string.IsNullOrEmpty(orderNo), src => src.OrderNo.Equals(orderNo!))
+                .AndIf(!string.IsNullOrEmpty(equipmentCode), src => src.ProductionOrder!.Equipment!.Code.Equals(equipmentCode!))
+                .AndIf(!string.IsNullOrEmpty(materialNo), src => src.MaterialNo.Contains(materialNo!))
+                .AndIf(!string.IsNullOrEmpty(status), src => src.Status == Enum.Parse<WorkOrderStatus>(status!))
+                .AndIf(date.HasValue, src => src.CreateDate.Date == date!.Value);
 
-            var entities = await workOrderService.ListAsync(expression, include: src => src
-                .Include(src => src.Equipment!).ThenInclude(src => src.Organize!)
-                .Include(src => src.Components!).ThenInclude(src => src.ElementEntities!.OrderBy(src => src.Position)).ThenInclude(src => src.Element!)
-                .Include(src => src.Parent!).ThenInclude(src => src.Equipment!)
-                .Include(src => src.UserInfo!));
+            var query = workOrderService.GetQueryable(expression, include: src => src
+                    .Include(src => src.ProductionOrder!).ThenInclude(src => src.Equipment!.Organize)
+                    .Include(src => src.Components!).ThenInclude(src => src.ElementEntities!.OrderBy(src => src.Position)).ThenInclude(src => src.Element!)
+                    .Include(src => src.Parent!).ThenInclude(src => src.ProductionOrder!.Equipment!)
+                    .Include(src => src.UserInfo!))
+                .OrderByDescending(src => src.Priority)
+                .ThenByDescending(src => src.CreateDate)
+                .AsNoTracking();
 
-            entities = entities.OrderByDescending(src => src.Priority).ThenByDescending(src => src.CreateDate).ToList();
-            int total = entities.Count;
+            int total = await query.CountAsync();
             if (pageIndex.HasValue && pageSize.HasValue)
-                entities = entities.Skip((pageIndex.Value - 1) * pageSize.Value).Take(pageSize.Value).ToList();
-
-            if (!string.IsNullOrEmpty(type) && (WorkOrderType)Enum.Parse(typeof(WorkOrderType), type) == WorkOrderType.机台更换)
-            {
-                var eclist = entities.Select(e => new
-                {
-                    e.Id,
-                    orderNo = e.OrderNo,
-                    type = Enum.GetName(typeof(WorkOrderType), e.Type),
-                    priority = Enum.GetName(typeof(WorkOrderPriority), e.Priority),
-                    parentOrderNo = e.Parent!.OrderNo,
-                    oldEquipmentCode = e.Parent!.Equipment!.Code,
-                    newEquipmentCode = e.Equipment!.Code,
-                    userInfoName = e.UserInfo!.Name,
-                    materialSpec = e.MaterialSpec,
-                    status = Enum.GetName(typeof(WorkOrderStatus), e.Status),
-                    createDate = e.CreateDate.ToString("yyyy-MM-dd HH:mm:ss"),
-                    reason = e.Reason
-                    //requiredDate = "-",
-                    //remark = e.Remark,
-                });
-                return new { total, rows = eclist.OrderByDescending(src => src.createDate) };
-            }
-            else
-            {
-                var list = entities.Where(e => e.Type != WorkOrderType.机台更换).ToList();
-                return new { total, rows = mapper.Map<List<WorkOrderDto>>(list) };
-            }
-                
+                query = query.Skip((pageIndex.Value - 1) * pageSize.Value).Take(pageSize.Value);
+            var entities = await query.ToListAsync();
+            return new { total, rows = mapper.Map<List<WorkOrderDto>>(entities) };
         }
 
         /// <summary>
@@ -135,7 +101,7 @@ namespace FGMS.PC.Api.Controllers
         {
             var entity = await workOrderService.ModelAsync(
                 expression: src => src.Status != WorkOrderStatus.工单结束 && src.Components!.Any(src => src.ElementEntities!.FirstOrDefault(src => src.Code!.Equals(eeCode)) != null),
-                include: src => src.Include(src => src.Equipment!).Include(src => src.UserInfo!).Include(src => src.Components!).ThenInclude(src => src.ElementEntities!));
+                include: src => src.Include(src => src.ProductionOrder!.Equipment!).Include(src => src.UserInfo!).Include(src => src.Components!).ThenInclude(src => src.ElementEntities!));
             if (entity is null)
                 return new { success = false, message = "工单不存在或已删除" };
             return mapper.Map<WorkOrderDto>(entity);
@@ -151,7 +117,7 @@ namespace FGMS.PC.Api.Controllers
         {
             var entity = mapper.Map<WorkOrder>(dto);
             entity.OrderNo = $"WO{randomNumber.CreateOrderNum()}";
-            entity.AgvTaskCode = Guid.NewGuid().ToString("N")[..16];
+            //entity.AgvTaskCode = Guid.NewGuid().ToString("N")[..16];
             entity.Type = WorkOrderType.砂轮申领;
             entity.Status = WorkOrderStatus.待审;
             bool success = await workOrderService.AddAsync(entity);
@@ -170,20 +136,7 @@ namespace FGMS.PC.Api.Controllers
                 return new { success = false, message = "参数错误" };
             return await workOrderService.AuditAsync(paramJson);
         }
-
-        /// <summary>
-        /// pmc审核
-        /// </summary>
-        /// <param name="paramJson">{ 'woId': int, 'status': 'string' }</param>
-        /// <returns></returns>
-        [HttpPut("auditPmc")]
-        public async Task<dynamic> AuditPmcAsync([FromBody] dynamic paramJson)
-        {
-            if (paramJson is null || paramJson!.woId is null && paramJson!.status is null)
-                return Task.FromResult<dynamic>(new { success = false, message = "参数错误" });
-            return await workOrderService.AuditPmcAsync(paramJson);
-        }
-
+        
         /// <summary>
         /// 驳回
         /// </summary>
@@ -194,6 +147,7 @@ namespace FGMS.PC.Api.Controllers
         {
             if (paramJson is null || paramJson.woId is null)
                 throw new ArgumentNullException(nameof(paramJson));
+
             int woId = paramJson.woId;
             var entity = await workOrderService.ModelAsync(expression: src => src.Id == woId);
 

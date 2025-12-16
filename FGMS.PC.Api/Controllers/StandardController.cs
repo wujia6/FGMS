@@ -41,21 +41,21 @@ namespace FGMS.PC.Api.Controllers
         [HttpGet("list")]
         public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize, string? code)
         {
-            var expression = ExpressionBuilder.GetTrue<Standard>();
-            if (!string.IsNullOrEmpty(code))
-                expression = expression.And(src => src.Code.Contains(code));
-            var entities = await standardService.ListAsync(
-                expression, 
-                include: src => src.Include(src => src.MainElement)
-                                    .Include(src => src.FirstElement!)
-                                    .Include(src => src.SecondElement!)
-                                    .Include(src => src.ThirdElement!)
-                                    .Include(src => src.FourthElement!)
-                                    .Include(src => src.FifthElement!));
-            int total = entities.Count;
+            var expression = ExpressionBuilder.GetTrue<Standard>().AndIf(!string.IsNullOrEmpty(code), src => src.Code.Contains(code!));
+            var query = standardService.GetQueryable(expression)
+                .Include(src => src.MainElement)
+                .Include(src => src.FirstElement!)
+                .Include(src => src.SecondElement!)
+                .Include(src => src.ThirdElement!)
+                .Include(src => src.FourthElement!)
+                .Include(src => src.FifthElement!)
+                .OrderByDescending(src => src.Id)
+                .AsNoTracking();
+            int total = await query.CountAsync();
             if (pageIndex.HasValue && pageSize.HasValue)
-                entities = entities.OrderByDescending(src => src.Id).Skip((pageIndex.Value - 1) * pageSize.Value).Take(pageSize.Value).ToList();
-            return new { total, rows = mapper.Map<List<StandardDto>>(entities.OrderByDescending(src => src.Id)) };
+                query = query.Skip((pageIndex.Value - 1) * pageSize.Value).Take(pageSize.Value);
+            var entities = await query.ToListAsync();
+            return new { total, rows = mapper.Map<List<StandardDto>>(entities) };
         }
 
         /// <summary>

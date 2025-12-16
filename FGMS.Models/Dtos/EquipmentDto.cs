@@ -9,6 +9,6 @@
         public string Name { get; set; }
         public bool? Enabled { get; set; }
         public bool? Mount { get; set; }
-        public List<WorkOrderDto>? WorkOrderDtos { get; set; }
+        public List<ProductionOrderDto>? ProductionOrderDtos { get; set; }
     }
 }

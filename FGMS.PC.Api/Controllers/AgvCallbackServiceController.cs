@@ -13,7 +13,6 @@ namespace FGMS.PC.Api.Controllers
     [Route("fgms/pc/agvCallbackService")]
     public class AgvCallbackServiceController : ControllerBase
     {
-        private readonly IWorkOrderService workOrderService;
         private readonly IAgvTaskSyncService agvTaskSyncService;
 
         /// <summary>
@@ -21,9 +20,8 @@ namespace FGMS.PC.Api.Controllers
         /// </summary>
         /// <param name="workOrderService"></param>
         /// <param name="agvTaskSyncService"></param>
-        public AgvCallbackServiceController(IWorkOrderService workOrderService, IAgvTaskSyncService agvTaskSyncService)
+        public AgvCallbackServiceController(IAgvTaskSyncService agvTaskSyncService)
         {
-            this.workOrderService = workOrderService;
             this.agvTaskSyncService = agvTaskSyncService;
         }
 
@@ -37,39 +35,38 @@ namespace FGMS.PC.Api.Controllers
         {
             string reqCode = DateTime.Now.ToString("yyyyMMddHHmmssff");
 
-            //if (param is null || string.IsNullOrEmpty(param.TaskCode) || string.IsNullOrEmpty(param.RobotCode))
-            //    return new { code = 1, message = "失败", reqCode };
-
             if(param is null || param.taskCode is null || param.robotCode is null || param.method is null)
                 return new { code = 1, message = "失败", reqCode };
 
             string taskCode = param.taskCode, robotCode = param.robotCode, method = param.method;
-
-            switch (method)
-            {
-                case "start":
-                    var workOrder = await workOrderService.ModelAsync(expression: src => src.AgvTaskCode.Equals(taskCode), include: src => src.Include(src => src.Equipment!).ThenInclude(src => src.Organize!));
-                    if (workOrder != null)
-                    {
-                        var sync = new AgvTaskSync
-                        {
-                            AgvCode = robotCode,
-                            TaskCode = taskCode,
-                            WorkOrderNo = workOrder.OrderNo,
-                            Start = workOrder.Type == WorkOrderType.砂轮申领 ? "GW1" : workOrder.Equipment!.Organize!.Code,
-                            End = workOrder.Type == WorkOrderType.砂轮返修 || workOrder.Type == WorkOrderType.砂轮退仓 ? "GW2" : workOrder.Equipment!.Organize!.Code
-                        };
-                        await agvTaskSyncService.AddAsync(sync);
-                    }
-                    break;
-                case "end":
-                    var taskSync = await agvTaskSyncService.ListAsync(expression: src => src.TaskCode.Equals(taskCode));
-                    if (taskSync is not null && taskSync.Any())
-                        await agvTaskSyncService.RemoveAsync(taskSync);
-                    break;
-                default:
-                    break;
-            }
+            //switch (method)
+            //{
+            //    case "start":
+            //        var workOrder = await workOrderService.ModelAsync(
+            //            expression: src => src.AgvTaskCode.Equals(taskCode), 
+            //            include: src => src.Include(src => src.ProductionOrder!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize!));
+            //        if (workOrder != null)
+            //        {
+            //            var sync = new AgvTaskSync
+            //            {
+            //                AgvCode = robotCode,
+            //                TaskCode = taskCode,
+            //                WorkOrderNo = workOrder.OrderNo,
+            //                Start = workOrder.Type == WorkOrderType.砂轮申领 ? "GW1" : workOrder.ProductionOrder!.Equipment!.Organize!.Code,
+            //                End = workOrder.Type == WorkOrderType.砂轮返修 || workOrder.Type == WorkOrderType.砂轮退仓 ? "GW2" : workOrder.ProductionOrder!.Equipment!.Organize!.Code
+            //            };
+            //            await agvTaskSyncService.AddAsync(sync);
+            //        }
+            //        break;
+            //    case "end":
+            //        var taskSync = await agvTaskSyncService.ListAsync(expression: src => src.TaskCode.Equals(taskCode));
+            //        if (taskSync is not null && taskSync.Any())
+            //            await agvTaskSyncService.RemoveAsync(taskSync);
+            //        break;
+            //    default:
+            //        break;
+            //}
+            await agvTaskSyncService.CallbackAsync(taskCode, robotCode, method);
             return new { code = "0", message = "成功", reqCode };
         }
     }
