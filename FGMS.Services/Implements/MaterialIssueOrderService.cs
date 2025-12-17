@@ -79,10 +79,10 @@ namespace FGMS.Services.Implements
 
         public async Task<dynamic> OutboundAsync(int[] ids, int userInfoId)
         {
-            var entities = await materialIssueOrderRepository.GetListAsync(expression: src => ids.Contains(src.Id), include: src => src.Include(src => src.ProductionOrder!));
+            var entities = await materialIssueOrderRepository.GetListAsync(expression: src => ids.Contains(src.Id));
 
-            if (entities is null || entities.Any(src => src.ProductionOrder is null))
-                return await Task.FromResult(new { success = false, message = "未知发料单" });
+            if (entities is null)
+                return new { success = false, message = "未知发料单" };
             
             await fgmsDbContext.BeginTrans();
             try
@@ -92,18 +92,10 @@ namespace FGMS.Services.Implements
                     if (entity.Status != MioStatus.待出库)
                         return new { success = false, message = $"发料单：{entity.OrderNo}状态错误，无法发料" };
 
-                    var productionOrder = entity.ProductionOrder;
                     entity.SendorId = userInfoId;
                     entity.Status = MioStatus.已出库;
                     if (!materialIssueOrderRepository.UpdateEntity(entities, new Expression<Func<MaterialIssueOrder, object>>[] { src => src.SendorId, src => src.Status }))
                         throw new Exception($"发料单:{ entity.OrderNo }状态更新失败");
-
-                    if (entity.Type == MioType.发料)
-                    {
-                        productionOrder!.Status = ProductionOrderStatus.配送中;
-                        if (!productionOrderRepository.UpdateEntity(productionOrder, new Expression<Func<ProductionOrder, object>>[] { src => src.Status }))
-                            throw new Exception($"制令单:{ productionOrder.OrderNo }状态更新失败");
-                    }
                 }
                 bool success = await fgmsDbContext.SaveChangesAsync() > 0;
                 if (success)

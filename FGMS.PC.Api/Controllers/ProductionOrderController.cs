@@ -45,7 +45,7 @@ namespace FGMS.PC.Api.Controllers
         {
             var expression = ExpressionBuilder.GetTrue<ProductionOrder>()
                 .AndIf(!string.IsNullOrEmpty(keyword), x => x.OrderNo!.Contains(keyword!) || x.FinishCode!.Contains(keyword!) || x.Equipment!.Code!.Contains(keyword!) || x.MaterialCode.Contains(keyword!))
-                .AndIf(!string.IsNullOrEmpty(status) && !status.Equals("已完成"), x => x.Status == Enum.Parse<ProductionOrderStatus>(status!));
+                .AndIf(!string.IsNullOrEmpty(status), x => x.Status == Enum.Parse<ProductionOrderStatus>(status!));
             
             var query = productionOrderService.GetQueryable(
                 expression, 

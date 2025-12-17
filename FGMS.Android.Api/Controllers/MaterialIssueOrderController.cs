@@ -90,7 +90,7 @@ namespace FGMS.Android.Api.Controllers
         public async Task<IActionResult> ScanAsync(string barCode)
         {
             var mio = await materialIssueOrderService.ModelAsync(
-                expression:src => src.MxBarCode!.Contains(barCode) && src.Status == MioStatus.已出库,
+                expression: src => src.MxBarCode!.Contains(barCode) && src.Status == MioStatus.已出库,
                 include: src => src.Include(src => src.ProductionOrder!).ThenInclude(src => src.Equipment!));
 
             if (mio is null)
@@ -132,7 +132,7 @@ namespace FGMS.Android.Api.Controllers
                 if (SequenceCheck(pos, poid))
                     return BadRequest(new { success = false, message = "请按制令单顺序叫料" });
 
-                ////工时超额检查
+                //工时超额检查
                 if (ExcessiveCheck(pos, poid))
                     return BadRequest(new { success = false, message = "完工工时超出24H限制，无法叫料" });
 
