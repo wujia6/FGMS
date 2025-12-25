@@ -20,6 +20,7 @@ namespace FGMS.PC.Api.Controllers
         private readonly IWorkOrderService workOrderService;
         private readonly IBrandService brandService;
         private readonly IElementEntityService elementEntityService;
+        private readonly IEquipmentChangeOrderService equipmentOrderChangeService;
         private readonly IMapper mapper;
 
         /// <summary>
@@ -28,12 +29,14 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="workOrderService"></param>
         /// <param name="brandService"></param>
         /// <param name="elementEntityService"></param>
+        /// <param name="equipmentOrderChangeService"></param>
         /// <param name="mapper"></param>
-        public ChartController(IWorkOrderService workOrderService, IBrandService brandService, IElementEntityService elementEntityService, IMapper mapper)
+        public ChartController(IWorkOrderService workOrderService, IBrandService brandService, IElementEntityService elementEntityService, IEquipmentChangeOrderService equipmentOrderChangeService, IMapper mapper)
         {
             this.workOrderService = workOrderService;
             this.brandService = brandService;
             this.elementEntityService = elementEntityService;
+            this.equipmentOrderChangeService = equipmentOrderChangeService;
             this.mapper = mapper;
         }
 
@@ -128,6 +131,20 @@ namespace FGMS.PC.Api.Controllers
                 include: src => src.Include(src => src.UserInfo!).Include(src => src.ProductionOrder!.Equipment!));
             orderEntities = orderEntities.OrderByDescending(src => src.CreateDate).ThenByDescending(src => src.Priority).ToList();
             return new { rows = mapper.Map<List<WorkOrderDto>>(orderEntities) };
+        }
+
+        /// <summary>
+        /// 获取未审核机台变更单
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("equipmentChangeByNotAudit")]
+        public async Task<IActionResult> EquipmentChangeByNotAuditAsync()
+        {
+            var query = equipmentOrderChangeService.GetQueryable(src => src.Status == WorkOrderStatus.待审)
+                .OrderByDescending(src => src.Id)
+                .AsNoTracking();
+            var entities = await query.ToListAsync();
+            return Ok(mapper.Map<List<EquipmentChangeOrderDto>>(entities));
         }
     }
 }

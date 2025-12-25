@@ -14,7 +14,6 @@ namespace FGMS.PC.Api.Controllers
     [Authorize]
     [ApiController]
     [Route("fgms/pc/brand")]
-    [PermissionAsync("brand_management", "management", "电脑")]
     public class BrandController : ControllerBase
     {
         private readonly IBrandService brandService;
@@ -38,6 +37,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="pageSize">记录数</param>
         /// <returns></returns>
         [HttpGet("list")]
+        [PermissionAsync("brand_management", "view", "电脑")]
         public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize)
         {
             var entities = await brandService.ListAsync();
@@ -53,7 +53,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="model">JSON</param>
         /// <returns></returns>
         [HttpPost("save")]
-        
+        [PermissionAsync("brand_management", "management", "电脑")]
         public async Task<dynamic> SaveAsync([FromBody] BrandDto model)
         {
             var entity = mapper.Map<Brand>(model);
@@ -68,6 +68,7 @@ namespace FGMS.PC.Api.Controllers
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
         [HttpDelete("remove")]
+        [PermissionAsync("brand_management", "management", "电脑")]
         public async Task<dynamic> RemoveAsync([FromBody] dynamic param)
         {
             if (param == null || param!.id is null) throw new ArgumentNullException(nameof(param));

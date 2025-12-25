@@ -11,7 +11,6 @@ namespace FGMS.PC.Api.Controllers
     [Authorize]
     [ApiController]
     [Route("api/qrimage")]
-    [PermissionAsync("element_management", "management", "电脑")]
     public class QrImageController : ControllerBase
     {
         private readonly string imageFolderPath;
@@ -31,6 +30,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="imageName">图片名称</param>
         /// <returns></returns>
         [HttpGet("getimage")]
+        [PermissionAsync("element_management", "view", "电脑")]
         public async Task<IActionResult> GetImage(string imageName)
         {
             var filePath = Path.Combine(imageFolderPath, imageName);
@@ -47,6 +47,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="fileName">图片名称</param>
         /// <returns></returns>
         [HttpGet("download")]
+        [PermissionAsync("element_management", "management", "电脑")]
         public async Task<IActionResult> DownloadAsync(string fileName)
         {
             if (string.IsNullOrEmpty(fileName))

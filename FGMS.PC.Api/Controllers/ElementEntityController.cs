@@ -18,7 +18,6 @@ namespace FGMS.PC.Api.Controllers
     [Authorize]
     [ApiController]
     [Route("fgms/pc/elemententity")]
-    [PermissionAsync("element_management", "management", "电脑")]
     public class ElementEntityController : ControllerBase
     {
         private readonly IWebHostEnvironment webHost;
@@ -77,6 +76,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="endDate">报废日期（结束）</param>
         /// <returns></returns>
         [HttpGet("list")]
+        [PermissionAsync("element_management", "view", "电脑")]
         public async Task<dynamic> ListAsync(
             int? pageIndex, int? pageSize, string? material, string? code, string? elementMaterialNo, string? modal, string? category, string? status, bool? isGroup, DateTime? startDate, DateTime? endDate)
         {
@@ -107,6 +107,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="standardId">标准ID</param>
         /// <returns></returns>
         [HttpGet("listbystandard")]
+        [PermissionAsync("element_management", "view", "电脑")]
         public async Task<StandardElementsResult> ListByStandardAsync(int standardId)
         {
             var std = await standardService.ModelAsync(expression: src => src.Id == standardId);
@@ -138,6 +139,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="paramJson">{ 'elementId':int, 'quantity': int }</param>
         /// <returns></returns>
         [HttpPost("build")]
+        [PermissionAsync("element_management", "management", "电脑")]
         public async Task<dynamic> BuildAsync([FromBody] dynamic paramJson)
         {
             if (paramJson is null || paramJson.elementId is null || paramJson.quantity is null)
@@ -183,6 +185,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="dto">JSON</param>
         /// <returns></returns>
         [HttpPut("update")]
+        [PermissionAsync("element_management", "management", "电脑")]
         public async Task<dynamic> UpdateAsync([FromBody] ElementEntityDto dto)
         {
             if (dto is null)
@@ -201,6 +204,7 @@ namespace FGMS.PC.Api.Controllers
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
         [HttpDelete("remove")]
+        [PermissionAsync("element_management", "management", "电脑")]
         public async Task<dynamic> RemoveAsync([FromBody] dynamic param)
         {
             if (param == null || param!.id is null) throw new ArgumentNullException(nameof(param));

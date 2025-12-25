@@ -20,7 +20,6 @@ namespace FGMS.PC.Api.Controllers
     [Authorize]
     [ApiController]
     [Route("fgms/pc/element")]
-    [PermissionAsync("material_management", "management", "电脑")]
     public class ElementController : ControllerBase
     {
         private readonly IElementService elementService;
@@ -53,6 +52,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="param8">长度</param>
         /// <returns></returns>
         [HttpGet("list")]
+        [PermissionAsync("material_management", "view", "电脑")]
         public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize, string? category, string? param1, string? param2, string? param3, string? param4, string? param5, string? param6, string? param7, string? param8)
         {
             //这个地方需要（品牌、料号、直径、砂轮宽、角度、内孔直径、砂轮粒度）
@@ -84,6 +84,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="modal">型号</param>
         /// <param name="spec">规格</param>
         [HttpGet("storagelist")]
+        [PermissionAsync("material_management", "view", "电脑")]
         public async Task<dynamic> StorageListAsync(int? pageIndex, int? pageSize, string? category, string? material, string? modal, string? spec)
         {
             var expression = ExpressionBuilder.GetTrue<Element>()
@@ -109,6 +110,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="dto">JSON</param>
         /// <returns></returns>
         [HttpPost("save")]
+        [PermissionAsync("material_management", "management", "电脑")]
         public async Task<dynamic> SaveAsync([FromBody] ElementDto dto)
         {
             if (dto is null)
@@ -124,6 +126,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="param"></param>
         /// <returns></returns>
         [HttpPost("import")]
+        [PermissionAsync("material_management", "management", "电脑")]
         public async Task<dynamic> ImportAsync([FromForm] UploadParam param)
         {
             if (param == null)
@@ -176,6 +179,7 @@ namespace FGMS.PC.Api.Controllers
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
         [HttpDelete("remove")]
+        [PermissionAsync("material_management", "management", "电脑")]
         public async Task<dynamic> RemoveAsync([FromBody] dynamic param)
         {
             if (param == null || param!.id is null) throw new ArgumentNullException(nameof(param));
