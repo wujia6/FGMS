@@ -1,5 +1,6 @@
 ﻿using FGMS.Models.Dtos;
 using FGMS.Models.Entities;
+using FGMS.PC.Api.Filters;
 using FGMS.Services.Interfaces;
 using FGMS.Utils;
 using MapsterMapper;
@@ -45,6 +46,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="endDate">结束日期</param>
         /// <returns></returns>
         [HttpGet("list")]
+        [PermissionAsync("log", "view", "电脑")]
         public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize, string? type, string? name, string? code, string? spec, DateTime? startDate, DateTime? endDate)
         {
             var expression = ExpressionBuilder.GetTrue<TrackLog>()

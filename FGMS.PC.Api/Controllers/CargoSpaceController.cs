@@ -1,6 +1,7 @@
 ﻿using System.Linq.Expressions;
 using FGMS.Models.Dtos;
 using FGMS.Models.Entities;
+using FGMS.PC.Api.Filters;
 using FGMS.Services.Interfaces;
 using FGMS.Utils;
 using MapsterMapper;
@@ -17,6 +18,7 @@ namespace FGMS.PC.Api.Controllers
     [Authorize]
     [ApiController]
     [Route("fgms/pc/cargospace")]
+    [PermissionAsync("cargo_space_management", "management", "电脑")]
     public class CargoSpaceController : ControllerBase
     {
         private readonly ICargoSpaceService cargoSpaceService;

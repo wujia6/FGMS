@@ -1,15 +1,18 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using FGMS.Models.Dtos;
+using FGMS.Models.Entities;
 using FGMS.Services.Interfaces;
 using FGMS.Utils;
 using MapsterMapper;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Extensions;
 
 namespace FGMS.Android.Api.Controllers
 {
@@ -21,6 +24,8 @@ namespace FGMS.Android.Api.Controllers
     public class SecurityController : ControllerBase
     {
         private readonly IUserInfoService userInfoService;
+        private readonly IMenuInfoService menuInfoService;
+        private readonly IPermissionInfoService permissionInfoService;
         private readonly ConfigHelper configHelper;
         private readonly IMapper mapper;
 
@@ -28,11 +33,15 @@ namespace FGMS.Android.Api.Controllers
         /// 
         /// </summary>
         /// <param name="userInfoService"></param>
+        /// <param name="menuInfoService"></param>
+        /// <param name="permissionInfoService"></param>
         /// <param name="configHelper"></param>
         /// <param name="mapper"></param>
-        public SecurityController(IUserInfoService userInfoService, ConfigHelper configHelper, IMapper mapper)
+        public SecurityController(IUserInfoService userInfoService, IMenuInfoService menuInfoService, IPermissionInfoService permissionInfoService, ConfigHelper configHelper, IMapper mapper)
         {
             this.userInfoService = userInfoService;
+            this.menuInfoService = menuInfoService;
+            this.permissionInfoService = permissionInfoService;
             this.configHelper = configHelper;
             this.mapper = mapper;
         }
@@ -51,9 +60,24 @@ namespace FGMS.Android.Api.Controllers
             string workNo = param!.account;
             //string password = EncryptHelper.DesEncrypt(param!.password.ToString());
             string password = param!.password;
-            var userInfo = await userInfoService.ModelAsync(expression: src => src.WorkNo.Equals(workNo) && src.Password.Equals(password), include: src => src.Include(src => src.RoleInfo!));
+            var userInfo = await userInfoService.ModelAsync(
+                expression: src => src.WorkNo.Equals(workNo) && src.Password.Equals(password) && src.RoleInfo!.PermissionInfos!.All(src => src.MenuInfo!.Client == Models.ClientType.移动),
+                include: src => src.Include(src => src.RoleInfo!).ThenInclude(src => src.PermissionInfos!).ThenInclude(src => src.MenuInfo!));
 
             if (userInfo == null) return new { success = false, message = "错误的用户名密码" };
+
+            dynamic menuTree;
+
+            if (userInfo.RoleInfo!.Code.Equals("Admin"))
+            {
+                var menus = await menuInfoService.ListAsync(expression: src => src.Client == Models.ClientType.移动);
+                menuTree = await BuildFullMenuTreeAsync(menus);
+            }
+            else
+            {
+                var permissionInfos = userInfo.RoleInfo!.PermissionInfos!.OrderBy(m => m.Id).ToList();
+                menuTree = await BuildMenuTreeAsync(permissionInfos);
+            }
 
             var claims = new List<Claim>
             {
@@ -78,6 +102,7 @@ namespace FGMS.Android.Api.Controllers
             return new
             {
                 data = new { userId = userInfo.Id, roleCode = userInfo.RoleInfo.Code, userName = userInfo.Name, workNo = userInfo.WorkNo },
+                menuTree,
                 token = "Bearer " + new JwtSecurityTokenHandler().WriteToken(token)
             };
         }
@@ -91,6 +116,54 @@ namespace FGMS.Android.Api.Controllers
         {
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return Ok(new { success = true, message = "登出成功" });
+        }
+
+        private static async Task<List<MenuInfoDto>> BuildMenuTreeAsync(List<PermissionInfo> permissionInfos, int? parentId = null)
+        {
+            var tree = permissionInfos
+                .Where(m => m.MenuInfo!.ParentId == parentId)
+                .Select(m => new MenuInfoDto
+                {
+                    Id = m.Id,
+                    ParentId = m.MenuInfo!.ParentId,
+                    Client = m.MenuInfo!.Client.GetDisplayName(),
+                    Name = m.MenuInfo!.Name,
+                    Code = m.MenuInfo!.Code,
+                    Path = m.MenuInfo!.Path,
+                    Icon = m.MenuInfo!.Icon,
+                    IsVisible = m.MenuInfo!.IsVisible,
+                    //ParentDto = null,
+                    ChildrenDtos = BuildMenuTreeAsync(permissionInfos, m.MenuInfo.Id).Result,
+                    //PermissionInfoDto = m.MenuInfo.ParentId is null ? null : new PermissionInfoDto
+                    //{
+                    //    CanView = m.CanView,
+                    //    CanManagement = m.CanManagement,
+                    //    CanAudits = m.CanAudits
+                    //}
+                })
+                .ToList();
+            return await Task.FromResult(tree);
+        }
+
+        private static async Task<List<MenuInfoDto>> BuildFullMenuTreeAsync(List<MenuInfo> menuInfos, int? parentId = null)
+        {
+            var tree = menuInfos
+                .Where(m => m.ParentId == parentId)
+                .Select(m => new MenuInfoDto
+                {
+                    Id = m.Id,
+                    ParentId = m.ParentId,
+                    Client = m.Client.GetDisplayName(),
+                    Name = m.Name,
+                    Code = m.Code,
+                    Path = m.Path,
+                    Icon = m.Icon,
+                    IsVisible = m.IsVisible,
+                    //ParentDto = null,
+                    ChildrenDtos = BuildFullMenuTreeAsync(menuInfos, m.Id).Result,
+                })
+                .ToList();
+            return await Task.FromResult(tree);
         }
     }
 }

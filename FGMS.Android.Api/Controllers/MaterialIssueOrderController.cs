@@ -1,4 +1,5 @@
 ﻿using System.Linq.Expressions;
+using FGMS.Android.Api.Filters;
 using FGMS.Models;
 using FGMS.Models.Dtos;
 using FGMS.Models.Entities;
@@ -20,6 +21,7 @@ namespace FGMS.Android.Api.Controllers
     [Authorize]
     [ApiController]
     [Route("fgms/android/materialIssueOrder")]
+    [PermissionAsync("m_material_issue_order_management", "management", "移动")]
     public class MaterialIssueOrderController : ControllerBase
     {
         private readonly IProductionOrderService productionOrderService;
@@ -174,21 +176,6 @@ namespace FGMS.Android.Api.Controllers
             int operatorId = userOnline.Id!.Value;
             return Ok(await materialIssueOrderService.EquipmentReceiveAsync(mioId, operatorId));
         }
-
-        ///// <summary>
-        ///// 发料
-        ///// </summary>
-        ///// <param name="paramJson">{ 'mioId': int }</param>
-        ///// <returns></returns>
-        //[HttpPut("send")]
-        //public async Task<dynamic> SendAsync([FromBody] dynamic paramJson)
-        //{
-        //    //呼叫agv
-
-        //    int mioId = paramJson.mioId;
-        //    int userInfoId = userOnline.Id!.Value;
-        //    return await materialIssueOrderService.OutboundAsync(mioId, userInfoId);
-        //}
 
         /// <summary>
         /// 分拣完成

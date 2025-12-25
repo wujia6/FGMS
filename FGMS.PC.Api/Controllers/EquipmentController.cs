@@ -1,6 +1,7 @@
 ﻿using FGMS.Models;
 using FGMS.Models.Dtos;
 using FGMS.Models.Entities;
+using FGMS.PC.Api.Filters;
 using FGMS.Services.Interfaces;
 using FGMS.Utils;
 using MapsterMapper;
@@ -43,6 +44,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="pageSize">记录数</param>
         /// <returns></returns>
         [HttpGet("list")]
+        [PermissionAsync("equipment_management", "view", "电脑")]
         public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize)
         {
             var entities = await equipmentService.ListAsync(include: src => src.Include(src => src.Organize!));
@@ -92,6 +94,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="mount">是否挂载</param>
         /// <returns></returns>
         [HttpGet("imminentList")]
+        [PermissionAsync("equipment_management", "view", "电脑")]
         public async Task<dynamic> ImminentListAsync(string? areaCode, bool? mount)
         {
             var expression = ExpressionBuilder.GetTrue<Equipment>()
@@ -134,6 +137,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="areaCode">区域</param>
         /// <returns></returns>
         [HttpGet("imminentRecords")]
+        [PermissionAsync("equipment_management", "view", "电脑")]
         public async Task<IActionResult> ImminentRecordsAsync(string areaCode = "A")
         {
             var machines = await equipmentService.ListAsync(
@@ -178,6 +182,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="model">JSON</param>
         /// <returns></returns>
         [HttpPost("save")]
+        [PermissionAsync("equipment_management", "management", "电脑")]
         public async Task<dynamic> SaveAsync([FromBody] EquipmentDto model)
         {
             var entity = mapper.Map<Equipment>(model);
@@ -192,6 +197,7 @@ namespace FGMS.PC.Api.Controllers
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
         [HttpDelete("remove")]
+        [PermissionAsync("equipment_management", "management", "电脑")]
         public async Task<dynamic> RemoveAsync([FromBody] dynamic param)
         {
             if (param == null || param!.id is null) throw new ArgumentNullException(nameof(param));

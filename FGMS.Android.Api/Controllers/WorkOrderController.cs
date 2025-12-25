@@ -1,4 +1,5 @@
 ﻿using System.Linq.Expressions;
+using FGMS.Android.Api.Filters;
 using FGMS.Models;
 using FGMS.Models.Dtos;
 using FGMS.Models.Entities;
@@ -20,6 +21,7 @@ namespace FGMS.Android.Api.Controllers
     [Authorize]
     [ApiController]
     [Route("fgms/android/[controller]/[action]")]
+    [PermissionAsync("m_whell_order_management", "management", "移动")]
     public class WorkOrderController : ControllerBase
     {
         private readonly IEquipmentService equipmentService;

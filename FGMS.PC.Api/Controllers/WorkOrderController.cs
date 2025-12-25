@@ -3,6 +3,7 @@ using System.Linq.Expressions;
 using FGMS.Models;
 using FGMS.Models.Dtos;
 using FGMS.Models.Entities;
+using FGMS.PC.Api.Filters;
 using FGMS.Services.Interfaces;
 using FGMS.Utils;
 using MapsterMapper;
@@ -65,6 +66,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="date">日期</param>
         /// <returns></returns>
         [HttpGet("list")]
+        [PermissionAsync("whell_order_management", "view", "电脑")]
         public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize, string? type, string? orderNo, string? equipmentCode, string? materialNo, string? status, DateTime? date)
         {
             var expression = ExpressionBuilder.GetTrue<WorkOrder>()
@@ -97,6 +99,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="eeCode">工件编码</param>
         /// <returns></returns>
         [HttpGet("single")]
+        [PermissionAsync("whell_order_management", "view", "电脑")]
         public async Task<dynamic> SingleAsync(string eeCode)
         {
             var entity = await workOrderService.ModelAsync(
@@ -113,6 +116,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="dto"></param>
         /// <returns></returns>
         [HttpPost("add")]
+        [PermissionAsync("whell_order_management", "management", "电脑")]
         public async Task<dynamic> AddAsync([FromBody] WorkOrderDto dto)
         {
             var entity = mapper.Map<WorkOrder>(dto);
@@ -130,6 +134,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="paramJson">{ 'woId' : int , 'nonStdCount': int, 'stdIds': [int] }</param>
         /// <returns></returns>
         [HttpPut("audit")]
+        [PermissionAsync("whell_order_management", "audit", "电脑")]
         public async Task<dynamic> AuditAsync([FromBody] dynamic paramJson)
         {
             if (paramJson is null || paramJson!.woId is null && paramJson!.status is null)
@@ -143,6 +148,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="paramJson">{ 'woId' : int, 'remark': 'string' }</param>
         /// <returns></returns>
         [HttpPut("overrule")]
+        [PermissionAsync("whell_order_management", "audit", "电脑")]
         public async Task<dynamic> OverruleAsync([FromBody] dynamic paramJson)
         {
             if (paramJson is null || paramJson.woId is null)
@@ -172,6 +178,7 @@ namespace FGMS.PC.Api.Controllers
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
         [HttpDelete("remove")]
+        [PermissionAsync("whell_order_management", "management", "电脑")]
         public async Task<dynamic> RemoveAsync([FromBody] dynamic paramJson)
         {
             if (paramJson == null || paramJson!.id is null)
@@ -192,6 +199,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="id">工单主键</param>
         /// <returns></returns>
         [HttpPut("cancel/{id:int}")]
+        [PermissionAsync("whell_order_management", "management", "电脑")]
         public async Task<dynamic> CancelAsync(int id)
         {
             return await workOrderService.CancelAsync(id);

@@ -1,4 +1,5 @@
-﻿using FGMS.Services.Interfaces;
+﻿using FGMS.Android.Api.Filters;
+using FGMS.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +12,7 @@ namespace FGMS.Android.Api.Controllers
     [Authorize]
     [ApiController]
     [Route("fgms/android/[controller]/[action]")]
+    [PermissionAsync("m_standard_management", "management", "移动")]
     public class ComponentController : ControllerBase
     {
         private readonly IComponentService componentService;

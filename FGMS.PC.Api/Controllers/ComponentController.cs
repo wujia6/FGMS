@@ -2,6 +2,7 @@
 using FGMS.Models;
 using FGMS.Models.Dtos;
 using FGMS.Models.Entities;
+using FGMS.PC.Api.Filters;
 using FGMS.Services.Interfaces;
 using FGMS.Utils;
 using MapsterMapper;
@@ -63,6 +64,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="isStd">是否标组</param>
         /// <returns></returns>
         [HttpGet("list")]
+        [PermissionAsync("component_management", "view", "电脑")]
         public async Task<dynamic> ListAsync(int? pageIndex,int? pageSize, string? cmpCode, bool isStd = false)
         {
             var expression = ExpressionBuilder.GetTrue<Component>().And(src => src.IsStandard == isStd);
@@ -97,6 +99,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="endDate">结束日期</param>
         /// <returns></returns>
         [HttpGet("standardHistoryList")]
+        [PermissionAsync("component_management", "view", "电脑")]
         public async Task<dynamic> StandardHistoryList(int? pageIndex, int? pageSize, string? cmpCode, string? workOrderNo, DateTime? startDate, DateTime? endDate)
         {
             var expression = ExpressionBuilder.GetTrue<ComponentLog>();
@@ -126,6 +129,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="status">状态</param>
         /// <returns></returns>
         [HttpGet("single")]
+        [PermissionAsync("component_management", "view", "电脑")]
         public async Task<dynamic> SingleAsync(string eeCode, string? status)
         {
             var expression = ExpressionBuilder.GetTrue<Component>()
@@ -144,6 +148,7 @@ namespace FGMS.PC.Api.Controllers
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
         [HttpPost("add")]
+        [PermissionAsync("component_management", "management", "电脑")]
         public async Task<dynamic> AddAsync([FromBody] dynamic paramJson)
         {
             if (paramJson is null || paramJson.isstd is null || paramJson.eeids is null)
@@ -201,6 +206,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="paramJson">{ 'componentId' : int }</param>
         /// <returns></returns>
         [HttpPut("split")]
+        [PermissionAsync("component_management", "management", "电脑")]
         public async Task<dynamic> SplitAsync([FromBody] dynamic paramJson)
         {
             if (paramJson is null || paramJson.componentId is null)

@@ -1,5 +1,6 @@
 ﻿using FGMS.Models.Dtos;
 using FGMS.Models.Entities;
+using FGMS.PC.Api.Filters;
 using FGMS.Services.Interfaces;
 using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
@@ -13,6 +14,7 @@ namespace FGMS.PC.Api.Controllers
     [Authorize]
     [ApiController]
     [Route("fgms/pc/brand")]
+    [PermissionAsync("brand_management", "management", "电脑")]
     public class BrandController : ControllerBase
     {
         private readonly IBrandService brandService;
@@ -51,6 +53,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="model">JSON</param>
         /// <returns></returns>
         [HttpPost("save")]
+        
         public async Task<dynamic> SaveAsync([FromBody] BrandDto model)
         {
             var entity = mapper.Map<Brand>(model);

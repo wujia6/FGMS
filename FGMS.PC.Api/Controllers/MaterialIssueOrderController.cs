@@ -1,6 +1,7 @@
 ﻿using FGMS.Models;
 using FGMS.Models.Dtos;
 using FGMS.Models.Entities;
+using FGMS.PC.Api.Filters;
 using FGMS.Services.Interfaces;
 using FGMS.Utils;
 using MapsterMapper;
@@ -18,6 +19,7 @@ namespace FGMS.PC.Api.Controllers
     [Authorize]
     [ApiController]
     [Route("fgms/pc/materialIssueOrder")]
+    [PermissionAsync("material_issue_order_management", "management", "电脑")]
     public class MaterialIssueOrderController : ControllerBase
     {
         private readonly IMaterialIssueOrderService materialIssueOrderService;

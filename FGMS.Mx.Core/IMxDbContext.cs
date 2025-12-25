@@ -1,6 +1,7 @@
 ﻿using FGMS.Mx.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace FGMS.Mx.Core
 {
@@ -10,5 +11,6 @@ namespace FGMS.Mx.Core
         DbSet<T> Set<T>() where T : class;
         DbSet<OutboundMaterial> OutboundMaterials { get; set; }
         DbSet<StoragePosition> StoragePositions { get; set; }
+        DatabaseFacade DataBase { get; }
     }
 }

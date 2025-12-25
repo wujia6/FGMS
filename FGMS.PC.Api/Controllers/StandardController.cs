@@ -1,5 +1,6 @@
 ﻿using FGMS.Models.Dtos;
 using FGMS.Models.Entities;
+using FGMS.PC.Api.Filters;
 using FGMS.Services.Interfaces;
 using FGMS.Utils;
 using MapsterMapper;
@@ -12,7 +13,7 @@ namespace FGMS.PC.Api.Controllers
     /// <summary>
     /// 标准组接口
     /// </summary>
-    //[Authorize]
+    [Authorize]
     [ApiController]
     [Route("fgms/pc/standard")]
     public class StandardController : ControllerBase
@@ -39,6 +40,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="code">标准码</param>
         /// <returns></returns>
         [HttpGet("list")]
+        [PermissionAsync("standard_number_management", "view", "电脑")]
         public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize, string? code)
         {
             var expression = ExpressionBuilder.GetTrue<Standard>().AndIf(!string.IsNullOrEmpty(code), src => src.Code.Contains(code!));
@@ -64,6 +66,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="dto">JSON</param>
         /// <returns></returns>
         [HttpPost("save")]
+        [PermissionAsync("standard_number_management", "management", "电脑")]
         public async Task<dynamic> SaveAsync([FromBody] StandardDto dto)
         {
             if (dto is null)
@@ -80,6 +83,7 @@ namespace FGMS.PC.Api.Controllers
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
         [HttpDelete("remove")]
+        [PermissionAsync("standard_number_management", "management", "电脑")]
         public async Task<dynamic> RemoveAsync([FromBody] dynamic param)
         {
             if (param == null || param!.id is null) throw new ArgumentNullException(nameof(param));

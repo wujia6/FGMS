@@ -1,5 +1,6 @@
 ﻿using FGMS.Models.Dtos;
 using FGMS.Models.Entities;
+using FGMS.PC.Api.Filters;
 using FGMS.Services.Interfaces;
 using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
@@ -37,6 +38,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="pageSize">记录数</param>
         /// <returns></returns>
         [HttpGet("list")]
+        [PermissionAsync("organize_management", "view", "电脑")]
         public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize)
         {
             var result = await organizeService.ListAsync(include: src => src.Include(src => src.Parent!));
@@ -52,6 +54,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="organizeId">组织ID</param>
         /// <returns></returns>
         [HttpGet("single")]
+        [PermissionAsync("organize_management", "management", "电脑")]
         public async Task<dynamic> SingleAsync(int organizeId)
         {
             var entity = await organizeService.ModelAsync(expression: src => src.Id == organizeId, include: src => src.Include(src => src.Parent!).Include(src => src.Childrens!));
@@ -66,6 +69,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="model">JSON</param>
         /// <returns></returns>
         [HttpPost("save")]
+        [PermissionAsync("organize_management", "management", "电脑")]
         public async Task<dynamic> SaveAsync([FromBody] OrganizeDto model)
         {
             var entity = mapper.Map<Organize>(model);
@@ -81,6 +85,7 @@ namespace FGMS.PC.Api.Controllers
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
         [HttpDelete("remove")]
+        [PermissionAsync("organize_management", "management", "电脑")]
         public async Task<dynamic> RemoveAsync([FromBody] dynamic param)
         {
             if (param == null || param!.id is null) throw new ArgumentNullException(nameof(param));

@@ -1,5 +1,6 @@
 ﻿using FGMS.Models.Dtos;
 using FGMS.Models.Entities;
+using FGMS.PC.Api.Filters;
 using FGMS.Services.Interfaces;
 using FGMS.Utils;
 using MapsterMapper;
@@ -40,6 +41,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="name">姓名</param>
         /// <returns></returns>
         [HttpGet("list")]
+        [PermissionAsync("user_management", "view", "电脑")]
         public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize, string? name)
         {
             var expression = ExpressionBuilder.GetTrue<UserInfo>();
@@ -58,6 +60,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="model">JSON</param>
         /// <returns></returns>
         [HttpPost("save")]
+        [PermissionAsync("user_management", "management", "电脑")]
         public async Task<dynamic> SaveAsync([FromBody] UserInfoDto model)
         {
             var entity = mapper.Map<UserInfo>(model);
@@ -72,6 +75,7 @@ namespace FGMS.PC.Api.Controllers
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
         [HttpDelete("remove")]
+        [PermissionAsync("user_management", "management", "电脑")]
         public async Task<dynamic> RemoveAsync([FromBody] dynamic param)
         {
             if (param == null || param!.id is null) throw new ArgumentNullException(nameof(param));

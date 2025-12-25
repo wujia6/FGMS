@@ -1,6 +1,7 @@
 ﻿using FGMS.Models;
 using FGMS.Models.Dtos;
 using FGMS.Models.Entities;
+using FGMS.PC.Api.Filters;
 using FGMS.Services.Interfaces;
 using FGMS.Utils;
 using MapsterMapper;
@@ -43,6 +44,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="status">状态</param>
         /// <returns></returns>
         [HttpGet("list")]
+        [PermissionAsync("equipment_change_management", "view", "电脑")]
         public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize, string? status)
         {
             var expression = ExpressionBuilder.GetTrue<EquipmentChangeOrder>()
@@ -68,6 +70,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="paramJson">{ 'ecid': int, 'status': 'string' }</param>
         /// <returns></returns>
         [HttpPut("audit")]
+        [PermissionAsync("equipment_change_management", "audit", "电脑")]
         public async Task<dynamic> AuditAsync([FromBody] dynamic paramJson)
         {
             if (paramJson is null || paramJson.ecid is null || paramJson.status is null)

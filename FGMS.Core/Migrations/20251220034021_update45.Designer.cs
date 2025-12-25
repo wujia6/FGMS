@@ -4,6 +4,7 @@ using FGMS.Core.EfCore.Implements;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FGMS.Core.Migrations
 {
     [DbContext(typeof(FgmsDbContext))]
-    partial class FgmsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251220034021_update45")]
+    partial class update45
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -650,6 +652,7 @@ namespace FGMS.Core.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Path")
+                        .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
@@ -700,12 +703,22 @@ namespace FGMS.Core.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
-                    b.Property<bool>("CanAudits")
+                    b.Property<bool>("CanDelete")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
-                    b.Property<bool>("CanManagement")
+                    b.Property<bool>("CanDownload")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("CanEdit")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("CanUpload")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
@@ -1001,7 +1014,7 @@ namespace FGMS.Core.Migrations
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("c15898f0519d4c6b");
+                        .HasDefaultValue("5de689139ae445d8");
 
                     b.Property<DateTime>("CreateDate")
                         .ValueGeneratedOnAdd()
@@ -1255,7 +1268,7 @@ namespace FGMS.Core.Migrations
             modelBuilder.Entity("FGMS.Models.Entities.PermissionInfo", b =>
                 {
                     b.HasOne("FGMS.Models.Entities.MenuInfo", "MenuInfo")
-                        .WithMany("PermissionInfos")
+                        .WithMany()
                         .HasForeignKey("MenuInfoId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1452,8 +1465,6 @@ namespace FGMS.Core.Migrations
             modelBuilder.Entity("FGMS.Models.Entities.MenuInfo", b =>
                 {
                     b.Navigation("Childrens");
-
-                    b.Navigation("PermissionInfos");
                 });
 
             modelBuilder.Entity("FGMS.Models.Entities.Organize", b =>

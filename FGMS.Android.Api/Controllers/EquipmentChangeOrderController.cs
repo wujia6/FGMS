@@ -1,4 +1,5 @@
-﻿using FGMS.Models;
+﻿using FGMS.Android.Api.Filters;
+using FGMS.Models;
 using FGMS.Models.Entities;
 using FGMS.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -12,6 +13,7 @@ namespace FGMS.Android.Api.Controllers
     [Authorize]
     [ApiController]
     [Route("fgms/android/equipmentChangeOrder")]
+    [PermissionAsync("m_whell_management", "management", "移动")]
     public class EquipmentChangeOrderController : ControllerBase
     {
         private readonly IEquipmentChangeOrderService equipmentChangeOrderService;

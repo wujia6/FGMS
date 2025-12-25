@@ -11,6 +11,8 @@ namespace FGMS.Core.EfCore.Interfaces
         DbSet<Brand> Brands { get; set; }
         DbSet<Equipment> Equipments { get; set; }
         DbSet<Organize> Organizes { get; set; }
+        DbSet<MenuInfo> MenuInfos { get; set; }
+        DbSet<PermissionInfo> PermissionInfos { get; set; }
         DbSet<RoleInfo> RoleInfos { get; set; }
         DbSet<UserInfo> UserInfos { get; set; }
         DbSet<WorkOrder> WorkOrders { get; set; }

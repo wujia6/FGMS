@@ -11,6 +11,7 @@ namespace FGMS.Models.Entities
         public string Name { get; set; }
         public virtual Organize? Organize { get; set; }
         public virtual IEnumerable<UserInfo>? UserInfos { get; set; }
+        public virtual IEnumerable<PermissionInfo>? PermissionInfos { get; set; }
     }
 
     public class RoleInfoConfig : IEntityTypeConfiguration<RoleInfo>

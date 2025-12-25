@@ -24,8 +24,19 @@ namespace FGMS.Utils
                 .Map(dest => dest.ChildrenDtos, src => src.Childrens)
                 .IgnoreNullValues(true);
 
+            config.ForType<MenuInfo, MenuInfoDto>()
+                //.Map(dest => dest.ParentDto, src => src.Parent)
+                .Map(dest => dest.ChildrenDtos, src => src.Childrens)
+                .IgnoreNullValues(true);
+
+            config.ForType<PermissionInfo, PermissionInfoDto>()
+                //.Map(dest => dest.RoleName, src => src.RoleInfo!.Name)
+                //.Map(dest => dest.MenuName, src => src.MenuInfo!.Name)
+                .IgnoreNullValues(true);
+
             config.ForType<RoleInfo, RoleInfoDto>()
                 .Map(dest => dest.OrganizeName, src => src.Organize!.Name)
+                .Map(dest => dest.PermissionInfoDtos, src => src.PermissionInfos)
                 .IgnoreNullValues(true);
 
             config.ForType<UserInfo, UserInfoDto>()

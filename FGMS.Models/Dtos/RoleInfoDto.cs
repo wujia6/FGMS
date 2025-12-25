@@ -7,5 +7,6 @@
         public string? OrganizeName { get; set; }
         public string Code { get; set; }
         public string Name { get; set; }
+        public List<PermissionInfoDto>? PermissionInfoDtos { get; set; }
     }
 }

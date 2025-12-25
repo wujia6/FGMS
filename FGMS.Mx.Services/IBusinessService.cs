@@ -7,5 +7,7 @@ namespace FGMS.Mx.Services
         public Task<List<OutboundMaterial>> GetBarcodesAsync(string codes);
 
         public Task<StoragePosition> GetStoragePositionsAsync(string code);
+
+        public Task UpdateProductionOrderStatus(string poNo, string status);
     }
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using FGMS.PC.Api.Filters;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,6 +11,7 @@ namespace FGMS.PC.Api.Controllers
     [Authorize]
     [ApiController]
     [Route("api/qrimage")]
+    [PermissionAsync("element_management", "management", "电脑")]
     public class QrImageController : ControllerBase
     {
         private readonly string imageFolderPath;

@@ -1,6 +1,7 @@
 ﻿using FGMS.Models;
 using FGMS.Models.Dtos;
 using FGMS.Models.Entities;
+using FGMS.PC.Api.Filters;
 using FGMS.Services.Interfaces;
 using FGMS.Utils;
 using MapsterMapper;
@@ -41,6 +42,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="status">状态</param>
         /// <returns></returns>
         [HttpGet("list")]
+        [PermissionAsync("production_order_management", "view", "电脑")]
         public async Task<IActionResult> ListAsync(int? pageIndex, int? pageSize, string? keyword, string? status)
         {
             var expression = ExpressionBuilder.GetTrue<ProductionOrder>()
@@ -70,6 +72,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="equipmentId">机台ID</param>
         /// <returns></returns>
         [HttpGet("listByEquipment")]
+        [PermissionAsync("production_order_management", "view", "电脑")]
         public async Task<IActionResult> ListByEquipmentAsync(int equipmentId)
         {
             var query = productionOrderService.GetQueryable(expression: src => src.EquipmentId == equipmentId && src.WorkOrder == null && !src.MaterialIssueOrders.Any() && src.Status == ProductionOrderStatus.已排配);
@@ -84,6 +87,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="dto">JSON</param>
         /// <returns></returns>
         [HttpPost("add")]
+        [PermissionAsync("production_order_management", "management", "电脑")]
         public async Task<dynamic> AddAsync([FromBody] ProductionOrderDto dto)
         {
             var entity = mapper.Map<ProductionOrder>(dto);

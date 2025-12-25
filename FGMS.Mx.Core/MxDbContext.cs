@@ -1,5 +1,7 @@
 ﻿using FGMS.Mx.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Configuration;
 
 namespace FGMS.Mx.Core
@@ -8,6 +10,8 @@ namespace FGMS.Mx.Core
     {
         public DbSet<OutboundMaterial> OutboundMaterials { get; set; } = default!;
         public DbSet<StoragePosition> StoragePositions { get; set; } = default!;
+
+        public DatabaseFacade DataBase => base.Database;
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {

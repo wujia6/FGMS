@@ -1,6 +1,7 @@
 ﻿using FGMS.Mx.Core;
 using FGMS.Mx.Models;
 using Microsoft.EntityFrameworkCore;
+using MySqlConnector;
 
 namespace FGMS.Mx.Repositories
 {
@@ -13,7 +14,7 @@ namespace FGMS.Mx.Repositories
             this.mxDbContext = mxDbContext;
         }
 
-        public Task<List<OutboundMaterial>> GetBarcodesAsync(string codes)
+        public async Task<List<OutboundMaterial>> GetBarcodesAsync(string codes)
         {
             //var codeList = codes.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).ToList();
             var sql = $@"
@@ -23,10 +24,10 @@ namespace FGMS.Mx.Repositories
                 LEFT JOIN sc_production_order c ON b.productionOrderId = c.id
                 WHERE c.`code` IN ({codes})";
 
-            return mxDbContext.OutboundMaterials.FromSqlRaw(sql).ToListAsync();
+            return await mxDbContext.OutboundMaterials.FromSqlRaw(sql).ToListAsync();
         }
 
-        public Task<StoragePosition> GetStoragePositionsAsync(string code)
+        public async Task<StoragePosition> GetStoragePositionsAsync(string code)
         {
             var sql = @"
                 SELECT 
@@ -48,7 +49,18 @@ namespace FGMS.Mx.Repositories
                     AND b.code = {0}
                 GROUP BY b.code, c.`name`";
 
-            return mxDbContext.StoragePositions.FromSqlRaw(sql, code).FirstOrDefaultAsync();
+            return await mxDbContext.StoragePositions.FromSqlRaw(sql, code).FirstOrDefaultAsync();
+        }
+
+        public async Task UpdateProductionOrderStatus(string poNo, string status)
+        {
+            string sql = "update sc_production_order set status=@status where code=@code";
+            var sqlParams = new List<MySqlParameter>
+            {
+                new("@status", status),
+                new("@code", poNo)
+            };
+            await mxDbContext.DataBase.ExecuteSqlRawAsync(sql, sqlParams);
         }
     }
 }
