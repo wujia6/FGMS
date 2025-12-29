@@ -61,8 +61,10 @@ namespace FGMS.Android.Api.Controllers
             //string password = EncryptHelper.DesEncrypt(param!.password.ToString());
             string password = param!.password;
             var userInfo = await userInfoService.ModelAsync(
-                expression: src => src.WorkNo.Equals(workNo) && src.Password.Equals(password) && src.RoleInfo!.PermissionInfos!.All(src => src.MenuInfo!.Client == Models.ClientType.移动),
-                include: src => src.Include(src => src.RoleInfo!).ThenInclude(src => src.PermissionInfos!).ThenInclude(src => src.MenuInfo!));
+                expression: src => src.WorkNo.Equals(workNo) && src.Password.Equals(password),
+                include: src => src.Include(src => src.RoleInfo!)
+                    .ThenInclude(src => src.PermissionInfos!.Where(src => src.MenuInfo!.Client == Models.ClientType.移动))
+                    .ThenInclude(src => src.MenuInfo!));
 
             if (userInfo == null) return new { success = false, message = "错误的用户名密码" };
 

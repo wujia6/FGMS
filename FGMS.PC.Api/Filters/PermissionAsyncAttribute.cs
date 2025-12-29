@@ -60,7 +60,6 @@ namespace FGMS.PC.Api.Filters
             }
 
             string roleCode = roleClaim.Value;
-
             // Admin 角色跳过权限检查
             if (string.Equals(roleCode, "Admin", StringComparison.OrdinalIgnoreCase))
             {

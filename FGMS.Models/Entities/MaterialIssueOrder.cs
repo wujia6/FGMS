@@ -20,6 +20,7 @@ namespace FGMS.Models.Entities
         public string? MxWareHouse { get; set; }
         public string? MxCargoSpace { get; set; }
         public string? MxBarCode { get; set; }
+        public string? MxOutStoreOrderNo { get; set; }
 
         public virtual ProductionOrder? ProductionOrder { get; set; }
         public virtual UserInfo? Createor { get; set; }

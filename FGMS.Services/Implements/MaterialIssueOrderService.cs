@@ -46,7 +46,7 @@ namespace FGMS.Services.Implements
             var currentUser = await userInfoRepository.GetEntityAsync(src => src.Id == userInfoId);
             string orgCode = mio.ProductionOrder!.Equipment!.Organize!.Code;
 
-            if (string.IsNullOrEmpty(currentUser.OperateRange) || !currentUser.OperateRange.Contains(orgCode))
+            if (currentUser.RoleInfoId != 1 && (string.IsNullOrEmpty(currentUser.OperateRange) || !currentUser.OperateRange.Contains(orgCode)))
                 return new { success = false, message = "无操作权限" };
 
             await fgmsDbContext.BeginTrans();
@@ -79,7 +79,7 @@ namespace FGMS.Services.Implements
 
         public async Task<dynamic> OutboundAsync(int[] ids, int userInfoId)
         {
-            var entities = await materialIssueOrderRepository.GetListAsync(expression: src => ids.Contains(src.Id));
+            var entities = await materialIssueOrderRepository.GetListAsync(expression: src => ids.Contains(src.Id), include: src => src.Include(src => src.ProductionOrder!));
 
             if (entities is null)
                 return new { success = false, message = "未知发料单" };
@@ -87,14 +87,23 @@ namespace FGMS.Services.Implements
             await fgmsDbContext.BeginTrans();
             try
             {
+                var pcodes = entities.Select(src => src.ProductionOrder!.OrderNo).Distinct().ToList();
+                string inputCodes = string.Join(",", pcodes.Select(s => $"'{s}'"));
+                var barCodes = await businessRepository.GetBarcodesAsync(inputCodes);
                 foreach (var entity in entities)
                 {
                     if (entity.Status != MioStatus.待出库)
                         return new { success = false, message = $"发料单：{entity.OrderNo}状态错误，无法发料" };
 
+                    string barCode = barCodes.FirstOrDefault(src => src.ProductionOrderCode == entity.ProductionOrder!.OrderNo)?.BarCode ?? string.Empty;
+
+                    if (string.IsNullOrEmpty(barCode))
+                        return new { success = false, message = $"墨心制令单：{entity.ProductionOrder!.OrderNo}未生成物料出库条码" };
+
                     entity.SendorId = userInfoId;
                     entity.Status = MioStatus.已出库;
-                    if (!materialIssueOrderRepository.UpdateEntity(entities, new Expression<Func<MaterialIssueOrder, object>>[] { src => src.SendorId, src => src.Status }))
+                    entity.MxBarCode = barCode;
+                    if (!materialIssueOrderRepository.UpdateEntity(entities, new Expression<Func<MaterialIssueOrder, object>>[] { src => src.SendorId, src => src.Status, src => src.MxBarCode }))
                         throw new Exception($"发料单:{ entity.OrderNo }状态更新失败");
                 }
                 bool success = await fgmsDbContext.SaveChangesAsync() > 0;
@@ -121,24 +130,14 @@ namespace FGMS.Services.Implements
             await fgmsDbContext.BeginTrans();
             try
             {
-                var pcodes = entities.Select(src => src.ProductionOrder!.OrderNo).Distinct().ToList();
-                string inputCodes = string.Join(",", pcodes.Select(s => $"'{s}'"));
-                var barCodes = await businessRepository.GetBarcodesAsync(inputCodes);
                 foreach (var entity in entities)
                 {
                     if (entity.Status != MioStatus.待备料)
                         return new { success = false, message = $"发料单：{entity.OrderNo}状态错误，无法备料" };
 
-                    string pcode = entity.ProductionOrder!.OrderNo;
-                    string barCode = barCodes.FirstOrDefault(src => src.ProductionOrderCode == pcode)?.BarCode ?? string.Empty;
-
-                    if (string.IsNullOrEmpty(barCode))
-                        return new { success = false, message = $"墨心制令单：{pcode}未生成出库物料条码" };
-
-                    entity.MxBarCode = barCode;
                     entity.Status = MioStatus.分拣中;
                 }
-                bool success = materialIssueOrderRepository.UpdateEntity(entities, new Expression<Func<MaterialIssueOrder, object>>[] { src => src.Status, src => src.MxBarCode }) && await fgmsDbContext.SaveChangesAsync() > 0;
+                bool success = materialIssueOrderRepository.UpdateEntity(entities, new Expression<Func<MaterialIssueOrder, object>>[] { src => src.Status }) && await fgmsDbContext.SaveChangesAsync() > 0;
                 if (success)
                     await fgmsDbContext.CommitTrans();
                 else

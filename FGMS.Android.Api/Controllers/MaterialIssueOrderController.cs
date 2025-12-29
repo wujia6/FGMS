@@ -140,6 +140,9 @@ namespace FGMS.Android.Api.Controllers
 
                 //获取墨心库存位置
                 storagePosition = await businessService.GetStoragePositionsAsync(po.OrderNo);
+
+                if (string.IsNullOrEmpty(storagePosition.OutStoreOrderCode))
+                    return BadRequest(new { success = false, message = "墨心系统中未找到对应的出库申请，无法叫料" });
             }
 
             var mio = new MaterialIssueOrder
@@ -153,7 +156,8 @@ namespace FGMS.Android.Api.Controllers
                 MaterialSpce = po.MaterialSpec,
                 Quantity = Enum.Parse<MioType>(type) == MioType.发料 ? po.Quantity : qty.Value,
                 MxWareHouse = storagePosition?.Warehouse ?? null,
-                MxCargoSpace = storagePosition?.CargoSpace ?? null
+                MxCargoSpace = storagePosition?.CargoSpace ?? null,
+                MxOutStoreOrderNo = storagePosition?.OutStoreOrderCode ?? null
             };
             po.Status = ProductionOrderStatus.待发料;
             bool success = await materialIssueOrderService.AddAsync(mio);
@@ -203,7 +207,7 @@ namespace FGMS.Android.Api.Controllers
         private static bool SequenceCheck(List<ProductionOrder> pos, int poId)
         {
             //如果没有找到任何制令单，直接返回true
-            if (pos is null || pos.Count == 0)
+            if (pos is null || !pos.Any())
                 return true;
 
             //过滤出比当前制令单ID小的制令单，检查其状态是否都为已排配
@@ -214,6 +218,9 @@ namespace FGMS.Android.Api.Controllers
         //工时超额检查
         private static bool ExcessiveCheck(List<ProductionOrder> pos, int poId)
         {
+            if (pos is null || !pos.Any())
+                return false;
+
             double totalHours = pos.Where(src => src.Status != ProductionOrderStatus.已排配 && src.Status != ProductionOrderStatus.已完成).Sum(src => src.WorkHours!.Value);
             totalHours += pos.FirstOrDefault(src => src.Id == poId)!.WorkHours!.Value;
             return totalHours > 24;

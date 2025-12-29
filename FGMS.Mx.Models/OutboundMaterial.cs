@@ -3,6 +3,6 @@
     public class OutboundMaterial
     {
         public string ProductionOrderCode { get; set; }
-        public string BarCode { get; set; }
+        public string? BarCode { get; set; }
     }
 }

@@ -22,5 +22,6 @@
         public string? MxWareHouse { get; set; }
         public string? MxCargoSpace { get; set; }
         public string? MxBarCode { get; set; }
+        public string? MxOutStoreOrderNo { get; set; }
     }
 }

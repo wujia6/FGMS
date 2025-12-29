@@ -30,34 +30,33 @@ namespace FGMS.Mx.Repositories
         public async Task<StoragePosition> GetStoragePositionsAsync(string code)
         {
             var sql = @"
-                SELECT 
-                    b.code AS ProductionOrderCode,
-                    c.`name` AS Warehouse,
-                    GROUP_CONCAT(DISTINCT goods_allocation.`name` SEPARATOR ', ') AS CargoSpace
-                FROM cr_out_store_application a 
-                LEFT JOIN sc_production_order b ON a.productionOrderId = b.id
-                LEFT JOIN cr_warehouse_management c ON a.warehouseId = c.id
-                LEFT JOIN cp_material_management d ON b.materialId = d.id
-                LEFT JOIN (
-                    SELECT DISTINCT a.materialId, c.`name`
-                    FROM cr_inventory_detail a
-                    LEFT JOIN cp_material_management b ON a.materialId = b.id
-                    LEFT JOIN cr_goods_allocation_management c ON a.allocationId = c.id
-                ) goods_allocation ON d.id = goods_allocation.materialId
-                WHERE a.productionOrderId IS NOT NULL 
-                    AND a.delete_time IS NULL 
-                    AND b.code = {0}
-                GROUP BY b.code, c.`name`";
-
+                select
+	                c.`code` as ProductionOrderCode,
+	                a.`code` as OutStoreOrderCode,
+	                d.`name` as Warehouse,
+	                group_concat(distinct f.`name` separator ', ') as CargoSpace
+                from cr_out_store_application a
+                left join cr_out_store_application_many b on b.oneId=a.id
+                left join sc_production_order c on a.productionOrderId=c.id
+                left join cr_warehouse_management d on a.warehouseId=d.id
+                left join cp_material_management e on b.materialId=e.id
+                left join (
+	                select distinct a.materialId, c.`name`
+	                from cr_inventory_detail a
+	                left join cp_material_management b ON a.materialId = b.id
+	                left join cr_goods_allocation_management c ON a.allocationId = c.id
+                ) f on e.id=f.materialId
+                where a.productionOrderId is not null and a.delete_time is null and c.`code`={0}
+                group by c.`code`,d.`name`";
             return await mxDbContext.StoragePositions.FromSqlRaw(sql, code).FirstOrDefaultAsync();
         }
 
         public async Task UpdateProductionOrderStatus(string poNo, string status)
         {
-            string sql = "update sc_production_order set status=@status where code=@code";
+            string sql = "update sc_production_order set state=@state where code=@code";
             var sqlParams = new List<MySqlParameter>
             {
-                new("@status", status),
+                new("@state", status),
                 new("@code", poNo)
             };
             await mxDbContext.DataBase.ExecuteSqlRawAsync(sql, sqlParams);
