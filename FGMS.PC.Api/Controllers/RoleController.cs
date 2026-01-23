@@ -4,12 +4,10 @@ using FGMS.Models.Entities;
 using FGMS.PC.Api.Filters;
 using FGMS.Services.Interfaces;
 using MapsterMapper;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Routing.Constraints;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi.Extensions;
+using Newtonsoft.Json;
 
 namespace FGMS.PC.Api.Controllers
 {
@@ -141,6 +139,46 @@ namespace FGMS.PC.Api.Controllers
                 await permissionInfoService.RemoveAsync(permissions);
 
             var entities = mapper.Map<List<PermissionInfo>>(dtos);
+            bool success = await permissionInfoService.AddAsync(entities);
+            return success ? Ok(new { success, message = "授权成功" }) : BadRequest(new { success, message = "授权失败" });
+        }
+
+        /// <summary>
+        /// 角色授权
+        /// </summary>
+        /// <param name="paramJson">{ 'roleInfoId': int, 'clientType': 'string', 'permissions': [{ 'menuInfoId': int, 'canView': bool, 'canManagement': bool, 'canAudits': bool }] }</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        [HttpPost("authorize")]
+        public async Task<IActionResult> AuthorizeAsync([FromBody] dynamic paramJson)
+        {
+            if (paramJson is null || paramJson.roleInfoId is null || paramJson.clentType is null)
+                throw new ArgumentNullException(nameof(paramJson));
+
+            int roleInfoId = paramJson.roleInfoId;
+            string clientType = paramJson.clientType;
+
+            var currentPermissions = await permissionInfoService.ListAsync(expression: src => src.RoleInfoId == roleInfoId && src.MenuInfo!.Client == Enum.Parse<ClientType>(clientType));
+
+            if (currentPermissions != null && currentPermissions.Any())
+                await permissionInfoService.RemoveAsync(currentPermissions);
+
+            if (paramJson.permissions is null)
+                return Ok(new { success = true, message = "授权成功" });
+
+            List<dynamic> permissions = JsonConvert.DeserializeObject<List<dynamic>>(Convert.ToString(paramJson.permissions));
+            List<PermissionInfo> entities = new();
+            foreach (var p in permissions)
+            {
+                entities.Add(new PermissionInfo
+                {
+                    RoleInfoId = roleInfoId,
+                    MenuInfoId = p.menuInfoId,
+                    CanView = p.canView,
+                    CanManagement = p.canManagement,
+                    CanAudits = p.canAudits
+                });
+            }
             bool success = await permissionInfoService.AddAsync(entities);
             return success ? Ok(new { success, message = "授权成功" }) : BadRequest(new { success, message = "授权失败" });
         }

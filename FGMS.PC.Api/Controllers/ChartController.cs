@@ -1,6 +1,7 @@
 ﻿using FGMS.Models;
 using FGMS.Models.Dtos;
 using FGMS.Models.Entities;
+using FGMS.PC.Api.Filters;
 using FGMS.Services.Interfaces;
 using FGMS.Utils;
 using MapsterMapper;
@@ -21,6 +22,7 @@ namespace FGMS.PC.Api.Controllers
         private readonly IBrandService brandService;
         private readonly IElementEntityService elementEntityService;
         private readonly IEquipmentChangeOrderService equipmentOrderChangeService;
+        private readonly IMaterialIssueOrderService materialIssueOrderService;
         private readonly IMapper mapper;
 
         /// <summary>
@@ -30,13 +32,21 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="brandService"></param>
         /// <param name="elementEntityService"></param>
         /// <param name="equipmentOrderChangeService"></param>
+        /// <param name="materialIssueOrderService"></param>
         /// <param name="mapper"></param>
-        public ChartController(IWorkOrderService workOrderService, IBrandService brandService, IElementEntityService elementEntityService, IEquipmentChangeOrderService equipmentOrderChangeService, IMapper mapper)
+        public ChartController(
+            IWorkOrderService workOrderService, 
+            IBrandService brandService, 
+            IElementEntityService elementEntityService, 
+            IEquipmentChangeOrderService equipmentOrderChangeService, 
+            IMaterialIssueOrderService materialIssueOrderService, 
+            IMapper mapper)
         {
             this.workOrderService = workOrderService;
             this.brandService = brandService;
             this.elementEntityService = elementEntityService;
             this.equipmentOrderChangeService = equipmentOrderChangeService;
+            this.materialIssueOrderService = materialIssueOrderService;
             this.mapper = mapper;
         }
 
@@ -145,6 +155,31 @@ namespace FGMS.PC.Api.Controllers
                 .AsNoTracking();
             var entities = await query.ToListAsync();
             return Ok(mapper.Map<List<EquipmentChangeOrderDto>>(entities));
+        }
+
+        //===============================发料单===============================//
+
+        /// <summary>
+        /// 获取发料单列表
+        /// </summary>
+        /// <param name="status">状态</param>
+        /// <returns></returns>
+        [HttpGet("issueOrderList")]
+        public async Task<IActionResult> IssueOrderListAsync(string? status)
+        {
+            var expression = ExpressionBuilder.GetTrue<MaterialIssueOrder>()
+                .AndIf(!string.IsNullOrEmpty(status), src => src.Status == Enum.Parse<MioStatus>(status!));
+
+            var query = materialIssueOrderService.GetQueryable(
+                expression,
+                include: src => src.Include(src => src.ProductionOrder!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize!).Include(src => src.Sendor!).Include(src => src.Createor!))
+                .OrderByDescending(x => x.Id)
+                .AsNoTracking();
+
+            int total = await query.CountAsync();
+            var entities = await query.ToListAsync();
+            var dtos = mapper.Map<List<MaterialIssueOrderDto>>(entities);
+            return Ok(new { total, rows = dtos });
         }
     }
 }

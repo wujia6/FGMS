@@ -7,6 +7,7 @@ using MapsterMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing.Constraints;
 using Microsoft.EntityFrameworkCore;
 
 namespace FGMS.PC.Api.Controllers
@@ -44,13 +45,16 @@ namespace FGMS.PC.Api.Controllers
         [PermissionAsync("user_management", "view", "电脑")]
         public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize, string? name)
         {
-            var expression = ExpressionBuilder.GetTrue<UserInfo>();
-            if (!string.IsNullOrEmpty(name))
-                expression = expression.And(src => src.Name.Contains(name));
+            var expression = ExpressionBuilder.GetTrue<UserInfo>()
+                .AndIf(!string.IsNullOrEmpty(name), src => src.Name.Contains(name!))
+                .And(src => src.RoleInfoId != 1);
+            
             var entities = await userInfoService.ListAsync(expression, include: src => src.Include(src => src.RoleInfo!).ThenInclude(src => src.Organize!));
             int total = entities.Count;
+
             if (pageIndex.HasValue && pageSize.HasValue)
                 entities = entities.Skip((pageIndex.Value - 1) * pageSize.Value).Take(pageSize.Value).ToList();
+
             return new { total, rows = mapper.Map<List<UserInfoDto>>(entities) };
         }
 

@@ -211,7 +211,7 @@ namespace FGMS.Android.Api.Controllers
                 return true;
 
             //过滤出比当前制令单ID小的制令单，检查其状态是否都为已排配
-            bool correct = pos.Where(src => src.Id < poId).Any(src => src.Status == ProductionOrderStatus.已排配);
+            bool correct = pos.Where(src => src.Id < poId && !src.IsDc!.Value).Any(src => src.Status == ProductionOrderStatus.已排配);
             return correct;
         }
 
@@ -222,8 +222,11 @@ namespace FGMS.Android.Api.Controllers
                 return false;
 
             double totalHours = pos.Where(src => src.Status != ProductionOrderStatus.已排配 && src.Status != ProductionOrderStatus.已完成).Sum(src => src.WorkHours!.Value);
-            totalHours += pos.FirstOrDefault(src => src.Id == poId)!.WorkHours!.Value;
-            return totalHours > 24;
+            if (totalHours > 24)
+                return true;
+            return false;
+            //totalHours += pos.FirstOrDefault(src => src.Id == poId)!.WorkHours!.Value;
+            //return totalHours > 24;
         }
     }
 }
