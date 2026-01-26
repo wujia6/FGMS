@@ -1,5 +1,4 @@
-﻿using System.Linq.Expressions;
-using FGMS.Android.Api.Filters;
+﻿using FGMS.Android.Api.Filters;
 using FGMS.Models;
 using FGMS.Models.Dtos;
 using FGMS.Models.Entities;
@@ -10,6 +9,7 @@ using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 
 namespace FGMS.Android.Api.Controllers
 {
@@ -83,30 +83,15 @@ namespace FGMS.Android.Api.Controllers
             if (paramJson is null || paramJson.poid is null)
                 return BadRequest(new { success = false, message = "参数错误" });
 
-            int poid = paramJson.poid;
-            var target = await productionOrderService.ModelAsync(
-                expression: src => src.Id == poid,
-                include: src => src.Include(src => src.WorkOrder!).ThenInclude(src => src.Components!).ThenInclude(src => src.ElementEntities!));
-
-            if (target is null)
-                return BadRequest(new { success = false, message = "未知制令单" });
-
-            if (target.Status != ProductionOrderStatus.已收料)
-                return BadRequest(new { success = false, message = "请按流程叫料、收料后，再开工" });
-
-            if (target.WorkOrder != null)
+            var result = await productionOrderService.MadeBeginAsync((int)paramJson.poid);
+            var resultJson = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(result));
+            bool success = resultJson.success;
+            if (success)
             {
-                if (target.WorkOrder.Status != WorkOrderStatus.机台接收)
-                    return BadRequest(new { success = false, message = $"砂轮工单：{target.WorkOrder.OrderNo}状态错误" });
-
-                if (target.WorkOrder.Components != null && target.WorkOrder.Components.Any(src => src.ElementEntities != null && src.ElementEntities.Any(e => e.Status != ElementEntityStatus.上机)))
-                    return BadRequest(new { success = false, message = "砂轮未上机" });
+                string orderNo = resultJson.data;
+                await businessService.UpdateProductionOrderStatus(orderNo, "生产中");   // 同步状态到MES
             }
-
-            target.Status = ProductionOrderStatus.生产中;
-            bool success = await productionOrderService.UpdateAsync(target, new Expression<Func<ProductionOrder, object>>[] { src => src.Status });
-            await businessService.UpdateProductionOrderStatus(target.OrderNo, "生产中");   // 同步状态到MES
-            return success ? Ok(new { success, message = "操作成功，状态已更新" }) : BadRequest(new { success, message = "操作失败" });
+            return success ? Ok(new { success, resultJson.message }) : BadRequest(new { success, resultJson.message });
         }
     }
 }

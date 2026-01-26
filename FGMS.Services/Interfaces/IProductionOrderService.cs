@@ -4,6 +4,6 @@ namespace FGMS.Services.Interfaces
 {
     public interface IProductionOrderService : IBaseService<ProductionOrder>
     {
-        //public Task<dynamic> CreateWheelAndMaterialAsync(int poid, int? qty);
+        public Task<dynamic> MadeBeginAsync(int poid);
     }
 }

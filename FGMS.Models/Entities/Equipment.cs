@@ -11,6 +11,7 @@ namespace FGMS.Models.Entities
         public string Name { get; set; }
         public bool Enabled { get; set; }
         public bool Mount { get; set; }
+        public bool PoMount { get; set; }
         public virtual Organize? Organize { get; set; }
         public virtual IEnumerable<ProductionOrder>? ProductionOrders { get; set; }
     }
@@ -25,6 +26,7 @@ namespace FGMS.Models.Entities
             builder.Property(e => e.Name).IsRequired().HasMaxLength(50);
             builder.Property(e => e.Enabled).HasDefaultValue(true);
             builder.Property(e => e.Mount).HasDefaultValue(false);
+            builder.Property(e => e.PoMount).HasDefaultValue(false);
             builder.HasOne(e => e.Organize).WithMany(e => e.Equipments).HasForeignKey(e => e.OrganizeId).OnDelete(DeleteBehavior.Cascade);
         }
     }

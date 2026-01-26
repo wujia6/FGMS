@@ -9,6 +9,7 @@
         public string Name { get; set; }
         public bool? Enabled { get; set; }
         public bool? Mount { get; set; }
+        public bool? PoMount { get; set; }
         public List<ProductionOrderDto>? ProductionOrderDtos { get; set; }
     }
 }
