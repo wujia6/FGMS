@@ -10,6 +10,7 @@ using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 
 namespace FGMS.PC.Api.Controllers
 {
@@ -35,6 +36,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="workOrderStandardService"></param>
         /// <param name="componentService"></param>
         /// <param name="cargoSpaceService"></param>
+        /// <param name="elementEntityService"></param>
         /// <param name="randomNumber"></param>
         /// <param name="mapper"></param>
         public WorkOrderController(
@@ -121,7 +123,7 @@ namespace FGMS.PC.Api.Controllers
         {
             var entity = mapper.Map<WorkOrder>(dto);
             entity.OrderNo = $"WO{randomNumber.CreateOrderNum()}";
-            //entity.AgvTaskCode = Guid.NewGuid().ToString("N")[..16];
+            entity.AgvTaskCode = Guid.NewGuid().ToString("N")[..16];
             entity.Type = WorkOrderType.砂轮申领;
             entity.Status = WorkOrderStatus.待审;
             bool success = await workOrderService.AddAsync(entity);
@@ -203,6 +205,26 @@ namespace FGMS.PC.Api.Controllers
         public async Task<dynamic> CancelAsync(int id)
         {
             return await workOrderService.CancelAsync(id);
+        }
+
+        /// <summary>
+        /// 强制结束
+        /// </summary>
+        /// <param name="paramJson">{ 'woid': int }</param>
+        /// <returns></returns>
+        [HttpPut("forceTerminate")]
+        [PermissionAsync("whell_order_management", "management", "电脑")]
+        public async Task<IActionResult> ForceTerminateAsync([FromBody] dynamic paramJson)
+        {
+            if (paramJson is null || paramJson!.woid is null)
+                return BadRequest(new { success = false, message = "参数错误" });
+
+            int woId = paramJson.woid;
+            var result = await workOrderService.WheelBackStockAsync(woId);
+            var jsonResult = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(result));
+            bool success = jsonResult!.success;
+            //string message = jsonResult!.message;
+            return success ? Ok(new { success, jsonResult.message }) : BadRequest(new { success, jsonResult.message });
         }
     }
 }

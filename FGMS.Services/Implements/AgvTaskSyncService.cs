@@ -13,12 +13,21 @@ namespace FGMS.Services.Implements
     {
         private readonly IAgvTaskSyncRepository agvRepository;
         private readonly IWorkOrderRepository orderRepository;
+        private readonly IEquipmentRepository equipmentRepository;
         private readonly HttpClientHelper httpClientHelper;
+        private readonly IFgmsDbContext fgmsDbContext;
 
-        public AgvTaskSyncService(IBaseRepository<AgvTaskSync> repo, IFgmsDbContext context, IWorkOrderRepository workOrderRepository, HttpClientHelper httpClientHelper) : base(repo, context)
+        public AgvTaskSyncService(
+            IBaseRepository<AgvTaskSync> repo, 
+            IFgmsDbContext context, 
+            IWorkOrderRepository workOrderRepository,
+            IEquipmentRepository equipmentRepository,
+            HttpClientHelper httpClientHelper) : base(repo, context)
         {
             agvRepository = repo as IAgvTaskSyncRepository ?? throw new ArgumentNullException(nameof(repo));
-            orderRepository = workOrderRepository ?? throw new ArgumentNullException(nameof(workOrderRepository));
+            fgmsDbContext = context ?? throw new ArgumentNullException(nameof(context));
+            this.orderRepository = workOrderRepository ?? throw new ArgumentNullException(nameof(workOrderRepository));
+            this.equipmentRepository = equipmentRepository ?? throw new ArgumentNullException(nameof(equipmentRepository));
             this.httpClientHelper = httpClientHelper ?? throw new ArgumentNullException(nameof(httpClientHelper));
         }
 
@@ -30,18 +39,45 @@ namespace FGMS.Services.Implements
                     var workOrder = await orderRepository.GetEntityAsync(
                         expression: src => src.AgvTaskCode.Equals(taskCode),
                         include: src => src.Include(src => src.ProductionOrder!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize!));
-                    if (workOrder != null)
+
+                    if (workOrder is null)
+                        return;
+
+                    var equipment = workOrder.ProductionOrder is null ?
+                        await equipmentRepository.GetEntityAsync(expression: src => src.Code.Equals(workOrder.RepairEquipmentCode), include: src => src.Include(src => src.Organize!)) :
+                        workOrder.ProductionOrder.Equipment;
+
+                    string orgCode = equipment!.Organize!.Code;
+
+                    var sync = new AgvTaskSync
                     {
-                        var sync = new AgvTaskSync
-                        {
-                            AgvCode = robotCode,
-                            TaskCode = taskCode,
-                            WorkOrderNo = workOrder.OrderNo,
-                            Start = workOrder.Type == WorkOrderType.砂轮申领 ? "GW1" : workOrder.ProductionOrder!.Equipment!.Organize!.Code,
-                            End = workOrder.Type == WorkOrderType.砂轮返修 || workOrder.Type == WorkOrderType.砂轮退仓 ? "GW2" : workOrder.ProductionOrder!.Equipment!.Organize!.Code
-                        };
-                        agvRepository.AddEntity(sync);
-                    }
+                        AgvCode = robotCode,
+                        TaskCode = taskCode,
+                        WorkOrderNo = workOrder.OrderNo,
+                        Start = workOrder.Type == WorkOrderType.砂轮申领 ? "GW1" : orgCode,
+                        End = workOrder.Type == WorkOrderType.砂轮返修 || workOrder.Type == WorkOrderType.砂轮退仓 ? "GW2" : orgCode
+                    };
+                    //switch (workOrder.Type)
+                    //{
+                    //    case WorkOrderType.砂轮申领:
+                    //        sync.Start = "GW1";
+                    //        sync.End = workOrder.ProductionOrder!.Equipment!.Organize!.Code;
+                    //        break;
+                    //    case WorkOrderType.砂轮返修:
+                    //        var equ =
+                    //            await equipmentRepository.GetEntityAsync(expression: src => src.Code.Equals(workOrder.RepairEquipmentCode), include: src => src.Include(src => src.Organize!)) ??
+                    //            throw new ArgumentNullException("未知返修设备");
+                    //        sync.Start = equ.Organize!.Code;
+                    //        sync.End = "GW2";
+                    //        break;
+                    //    case WorkOrderType.砂轮退仓:
+                    //        sync.Start = workOrder.ProductionOrder!.Equipment!.Organize!.Code;
+                    //        sync.End = "GW2";
+                    //        break;
+                    //    //default:
+                    //    //    break;
+                    //}
+                    agvRepository.AddEntity(sync);
                     break;
                 case "end":
                     var taskSync = await agvRepository.GetListAsync(expression: src => src.TaskCode.Equals(taskCode));
@@ -55,43 +91,11 @@ namespace FGMS.Services.Implements
 
         public async Task<dynamic> ExecuteAgvTaskAsync(string taskType, string taskUrl, string taskCode, string? start = null, string? end = null)
         {
-            Dictionary<string, object> taskParam;
-            if (taskType.Equals("execute"))
-            {
-                if (string.IsNullOrEmpty(start) || string.IsNullOrEmpty(end))
-                    throw new ArgumentNullException("start,end参数不能为空");
-
-                taskUrl = $"{taskUrl}genAgvSchedulingTask";
-                taskParam = new Dictionary<string, object>
-                {
-                    { "reqCode", DateTime.Now.ToString("yyyyMMddHHmmssff") },
-                    { "taskTyp", "SL1" },
-                    { "taskCode", taskCode },
-                    {
-                        "positionCodePath", new List<Dictionary<string, object>>
-                        {
-                            new() { { "positionCode", start },{ "type", "00" } },
-                            new() { { "positionCode", end }, { "type", "00" } }
-                        }
-                    }
-                };
-            }
-            else
-            {
-                taskUrl = $"{taskUrl}continueTask";
-                taskParam = new Dictionary<string, object>
-                {
-                    { "reqCode", DateTime.Now.ToString("yyyyMMddHHmmssff") },
-                    { "taskCode", taskCode }
-                };
-            }
-            var result = await httpClientHelper.PostAsync<dynamic>(taskUrl, taskParam);
-            bool success = int.Parse(result.code.ToString()) == 0;
-
-            if (!success)
-                return new { success = false, message = $"AGV呼叫失败：{result.message}" };
-
             var orderEntity = await orderRepository.GetEntityAsync(expression: src => src.AgvTaskCode.Equals(taskCode));
+
+            if (orderEntity is null)
+                return new { success = false, message = "未知工单" };
+
             switch (orderEntity.Type)
             {
                 case WorkOrderType.砂轮返修:
@@ -101,9 +105,73 @@ namespace FGMS.Services.Implements
                     orderEntity.Status = taskType.Equals("execute") ? WorkOrderStatus.呼叫AGV : WorkOrderStatus.退仓配送;
                     break;
             }
-            orderEntity.AgvStatus = taskType;
-            success = orderRepository.UpdateEntity(orderEntity, new Expression<Func<WorkOrder, object>>[] { src => src.Status, src => src.AgvStatus });
-            return new { success, message = success ? taskType.Equals("execute") ? "工单已更新，AGV收料" : "工单已更新，AGV开始配送" : "工单更新失败" };
+
+            await fgmsDbContext.BeginTrans();
+            try
+            {
+                orderEntity.AgvStatus = taskType;
+                orderRepository.UpdateEntity(orderEntity, new Expression<Func<WorkOrder, object>>[] { src => src.Status, src => src.AgvStatus });
+
+                //呼叫AGV
+                Dictionary<string, object> taskParam;
+                if (taskType.Equals("execute"))
+                {
+                    //如或是返修工单，则从工单关联设备获取配送区域
+                    if (string.IsNullOrEmpty(end) && orderEntity.Type == WorkOrderType.砂轮返修)
+                    {
+                        var equipment = await equipmentRepository.GetEntityAsync(expression: src => src.Code.Equals(orderEntity.RepairEquipmentCode),include: src => src.Include(src => src.Organize!));
+                        end = equipment?.Organize?.Code;
+                    }
+
+                    if (string.IsNullOrEmpty(start) || string.IsNullOrEmpty(end))
+                        throw new ArgumentNullException("start,end参数不能为空");
+
+                    taskUrl = $"{taskUrl}genAgvSchedulingTask";
+                    taskParam = new Dictionary<string, object>
+                    {
+                        { "reqCode", DateTime.Now.ToString("yyyyMMddHHmmssff") },
+                        { "taskTyp", "SL1" },
+                        { "taskCode", taskCode },
+                        {
+                            "positionCodePath", new List<Dictionary<string, object>>
+                            {
+                                new() { { "positionCode", start },{ "type", "00" } },
+                                new() { { "positionCode", end }, { "type", "00" } }
+                            }
+                        }
+                    };
+                }
+                else
+                {
+                    taskUrl = $"{taskUrl}continueTask";
+                    taskParam = new Dictionary<string, object>
+                    {
+                        { "reqCode", DateTime.Now.ToString("yyyyMMddHHmmssff") },
+                        { "taskCode", taskCode }
+                    };
+                }
+                
+                
+
+                var result = await httpClientHelper.PostAsync<dynamic>(taskUrl, taskParam);
+                bool success = success = int.Parse(result.code.ToString()) == 0 && await fgmsDbContext.SaveChangesAsync() > 0;
+
+                if (success)
+                    await fgmsDbContext.CommitTrans();
+                else
+                    await fgmsDbContext.RollBackTrans();
+
+                return new
+                {
+                    success,
+                    message = success ? taskType.Equals("execute") ? "工单已更新，AGV开始收料" : "工单已更新，AGV开始配送" : $"AGV呼叫失败：{result.message}"
+                };
+            }
+            catch (Exception ex)
+            {
+                await fgmsDbContext.RollBackTrans();
+                return new { success = false, message = $"工单更新失败：{ex.Message}" };
+            }
         }
     }
 }

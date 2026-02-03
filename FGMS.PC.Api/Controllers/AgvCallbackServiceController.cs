@@ -35,7 +35,7 @@ namespace FGMS.PC.Api.Controllers
         {
             string reqCode = DateTime.Now.ToString("yyyyMMddHHmmssff");
 
-            if(param is null || param.taskCode is null || param.robotCode is null || param.method is null)
+            if (param is null || param.taskCode is null || param.robotCode is null || param.method is null)
                 return new { code = 1, message = "失败", reqCode };
 
             string taskCode = param.taskCode, robotCode = param.robotCode, method = param.method;

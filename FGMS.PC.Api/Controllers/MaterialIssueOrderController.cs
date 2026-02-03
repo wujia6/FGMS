@@ -62,8 +62,10 @@ namespace FGMS.PC.Api.Controllers
 
             var query = materialIssueOrderService.GetQueryable(
                 expression, 
-                include: src => src.Include(src => src.ProductionOrder!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize!).Include(src => src.Sendor!).Include(src => src.Createor!))
-                .OrderByDescending(x => x.Id)
+                include: src => src.Include(src => src.ProductionOrder!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize!)
+                    .Include(src => src.Sendor!)
+                    .Include(src => src.Createor!))
+                .OrderByDescending(src => src.Id)
                 .AsNoTracking();
 
             int total = await query.CountAsync();

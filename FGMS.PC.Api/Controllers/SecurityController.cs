@@ -59,7 +59,9 @@ namespace FGMS.PC.Api.Controllers
             string password = param!.password;
             var userInfo = await userInfoService.ModelAsync(
                 expression: src => src.WorkNo.Equals(workNo) && src.Password.Equals(password),
-                include: src => src.Include(src => src.RoleInfo!).ThenInclude(src => src.PermissionInfos!.Where(src => src.MenuInfo!.Client == Models.ClientType.电脑)).ThenInclude(src => src.MenuInfo!));
+                include: src => src.Include(src => src.RoleInfo!)
+                    .ThenInclude(src => src.PermissionInfos!.Where(src => src.MenuInfo!.Client == Models.ClientType.电脑))
+                    .ThenInclude(src => src.MenuInfo!));
 
             if (userInfo == null) return new { success = false, message = "错误的用户名密码" };
 

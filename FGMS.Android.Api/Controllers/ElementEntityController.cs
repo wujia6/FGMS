@@ -50,7 +50,7 @@ namespace FGMS.Android.Api.Controllers
         {
             var expression = ExpressionBuilder.GetTrue<ElementEntity>()
                 .And(src => src.Code!.Equals(code))
-                .AndIf(!string.IsNullOrEmpty(status), src => src.Status.GetDisplayName() == status);
+                .AndIf(!string.IsNullOrEmpty(status), src => src.Status == Enum.Parse<ElementEntityStatus>(status!));
 
             var entity = await elementEntityService.ModelAsync(expression, include: src => src.Include(src => src.Element!));
 

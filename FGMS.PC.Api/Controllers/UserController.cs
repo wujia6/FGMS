@@ -68,7 +68,19 @@ namespace FGMS.PC.Api.Controllers
         public async Task<dynamic> SaveAsync([FromBody] UserInfoDto model)
         {
             var entity = mapper.Map<UserInfo>(model);
-            bool success = entity.Id > 0 ? await userInfoService.UpdateAsync(entity) : await userInfoService.AddAsync(entity);
+            bool success = false;
+            if (entity.Id > 0)
+            {
+                success = await userInfoService.UpdateAsync(entity);
+            }
+            else
+            {
+                bool exists = await userInfoService.ModelAsync(expression: src => src.WorkNo.Equals(entity.WorkNo)) == null;
+                if (!exists)
+                    return new { success = false, message = "工号已存在，不能重复添加" };
+                success = await userInfoService.AddAsync(entity);
+            }
+            //bool success = entity.Id > 0 ? await userInfoService.UpdateAsync(entity) : await userInfoService.AddAsync(entity);
             return new { success, message = success ? "保存成功" : "保存失败" };
         }
 

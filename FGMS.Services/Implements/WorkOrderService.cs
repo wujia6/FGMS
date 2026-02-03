@@ -751,5 +751,69 @@ namespace FGMS.Services.Implements
             }
             return updateCmpLogs;
         }
+
+        // 砂轮组强制退仓
+        public async Task<dynamic> WheelBackStockAsync(int woId)
+        {
+            var record = await workOrderRepository!.GetEntityAsync(expression: src => src.Id == woId, include: src => src.Include(src => src.Components!).ThenInclude(src => src.ElementEntities!));
+
+            if (record is null)
+                return new { success = false, message = "未知砂轮工单" };
+
+            if (record.Status == WorkOrderStatus.工单结束)
+                return new { success = false, message = "砂轮工单已结束" };
+
+            if (record.ProductionOrderId.HasValue)
+                return new { success = false, message = "正常砂轮工单，请走正常流程" };
+
+            var components = record.Components!;
+            if (components is null || !components.Any())
+                return new { success = false, message = "未知砂轮组" };
+
+            await fgmsDbContext!.BeginTrans();
+            try
+            {
+                foreach (var com in components)
+                {
+                    if (com.CargoSpaceHistory is null)
+                        return new { success = false, message = $"砂轮组 {com.Code} 未记录仓位信息，无法入库" };
+
+                    foreach (var ee in com.ElementEntities!)
+                    {
+                        if (ee.CargoSpaceHistory is null)
+                            return new { success = false, message = $"砂轮 {ee.Code} 未记录仓位信息，无法入库" };
+
+                        if (ee.Status != ElementEntityStatus.在库)
+                        {
+                            ee.Status = ElementEntityStatus.在库;
+                            ee.CargoSpaceId = ee.CargoSpaceHistory.Value;
+                            ee.Position = null;
+                            elementEntityRepository!.UpdateEntity(ee, new Expression<Func<ElementEntity, object>>[] { src => src.Status, src => src.CargoSpaceId, src => src.Position } );
+                        }
+                    }
+
+                    if (com.Status != ElementEntityStatus.在库)
+                    {
+                        com.WorkOrderId = null;
+                        com.Status = ElementEntityStatus.在库;
+                        com.CargoSpaceId = com.CargoSpaceHistory.Value;
+                        componentRepository!.UpdateEntity(com, new Expression<Func<Component, object>>[] { src => src.Status, src => src.WorkOrderId, src => src.CargoSpaceId });
+                    }
+                }
+                record.Status = WorkOrderStatus.工单结束;
+                workOrderRepository.UpdateEntity(record, new Expression<Func<WorkOrder, object>>[] { src => src.Status });
+                bool success = await fgmsDbContext.SaveChangesAsync() > 0;
+                if (success)
+                    await fgmsDbContext.CommitTrans();
+                else
+                    await fgmsDbContext.RollBackTrans();
+                return new { success, message = success ? "砂轮组强制退仓成功" : "砂轮组强制退仓失败" };
+            }
+            catch (Exception ex)
+            {
+                await fgmsDbContext.RollBackTrans();
+                return new { success = false, message = "强制退仓过程中发生错误：" + ex.Message };
+            }
+        }
     }
 }

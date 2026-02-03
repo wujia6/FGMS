@@ -19,5 +19,7 @@ namespace FGMS.Services.Interfaces
         public Task<dynamic> MachineUpperAsync(int orderId);
 
         public Task<dynamic> MachineDownAsync(List<Component> components);
+
+        public Task<dynamic> WheelBackStockAsync(int woId);
     }
 }

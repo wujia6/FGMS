@@ -124,6 +124,7 @@ namespace FGMS.Utils
 
             config.ForType<WorkOrder, WorkOrderDto>()
                 .Map(dest => dest.ParentNo, src => src.Parent!.OrderNo)
+                .Map(dest => dest.EquipmentId, src => src.ProductionOrder!.EquipmentId)
                 .Map(dest => dest.EquipmentCode, src => src.ProductionOrder!.Equipment!.Code)
                 .Map(dest => dest.OrganizeCode, src => src.ProductionOrder!.Equipment!.Organize!.Code)
                 .Map(dest => dest.ProductionOrderNo, src => src.ProductionOrder != null ? src.ProductionOrder!.OrderNo : string.Empty)

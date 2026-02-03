@@ -66,7 +66,11 @@ namespace FGMS.PC.Api.Controllers
         {
             var equipments = await equipmentService.ListAsync(
                 expression: src => src.Code.Contains(areaCode), 
-                include: src => src.Include(src => src.ProductionOrders!).ThenInclude(src => src.WorkOrder!).ThenInclude(src => src.Components!).ThenInclude(src => src.ElementEntities!));
+                include: src => src.Include(src => src.ProductionOrders!)
+                    .ThenInclude(src => src.WorkOrder!)
+                    .ThenInclude(src => src.Components!)
+                    .ThenInclude(src => src.ElementEntities!));
+
             var dtos = mapper.Map<List<EquipmentDto>>(equipments);
             var equDtos = dtos.Select(e => new
             {
@@ -102,7 +106,11 @@ namespace FGMS.PC.Api.Controllers
                 .AndIf(mount.HasValue, src => src.Mount == mount!.Value);
 
             var equipments = await equipmentService.ListAsync(
-                expression, include: src => src.Include(src => src.ProductionOrders!).ThenInclude(src => src.WorkOrder!).ThenInclude(src => src.Components!).ThenInclude(src => src.ElementEntities!));
+                expression,
+                include: src => src.Include(src => src.ProductionOrders!)
+                    .ThenInclude(src => src.WorkOrder!)
+                    .ThenInclude(src => src.Components!)
+                    .ThenInclude(src => src.ElementEntities!));
 
             var returnList = new List<dynamic>();
             foreach (var equipment in equipments)
@@ -112,14 +120,19 @@ namespace FGMS.PC.Api.Controllers
                 dynamic downList = new List<string>();
                 if (equipment.ProductionOrders is not null && equipment.ProductionOrders.Any())
                 {
-                    var wos = equipment.ProductionOrders!.Where(src => src.WorkOrder != null && src.WorkOrder.Status == WorkOrderStatus.机台接收).Select(src => src.WorkOrder!);
+                    var wos = equipment.ProductionOrders!
+                        .Where(src => src.WorkOrder != null && src.WorkOrder.Status == WorkOrderStatus.机台接收)
+                        .Select(src => src.WorkOrder!);
+
                     if (wos.Any())
                     {
                         var cmps = wos.SelectMany(src => src.Components!);
                         var ees = cmps.SelectMany(src => src.ElementEntities!);
                         if (cmps != null && cmps.Any() && ees != null && ees.Any())
                         {
-                            currentUpper = ees.FirstOrDefault(src => src.Status == ElementEntityStatus.上机) == null ? string.Empty : ees.FirstOrDefault(src => src.Status == ElementEntityStatus.上机)!.Component!.WorkOrder!.OrderNo;
+                            currentUpper = ees.FirstOrDefault(src => src.Status == ElementEntityStatus.上机) == null 
+                                ? string.Empty 
+                                : ees.FirstOrDefault(src => src.Status == ElementEntityStatus.上机)!.Component!.WorkOrder!.OrderNo;
                             receiveList = wos.Select(src => src.OrderNo);
                             downList = wos.Where(src => src.Components!.Where(src => src.ElementEntities!.Where(src => src.Status == ElementEntityStatus.下机).Any()).Any()).Select(src => src.OrderNo);
                         }
@@ -143,8 +156,10 @@ namespace FGMS.PC.Api.Controllers
             var machines = await equipmentService.ListAsync(
                 expression: src => src.Code.Contains(areaCode),
                 include: src => src
-                    .Include(src => src.ProductionOrders!.Where(src => src.Status != ProductionOrderStatus.已排配 && src.Status != ProductionOrderStatus.已完成)).ThenInclude(src => src.MaterialIssueOrders!)
-                    .Include(src => src.ProductionOrders!).ThenInclude(src => src.WorkOrder!));
+                    .Include(src => src.ProductionOrders!.Where(src => src.Status != ProductionOrderStatus.已排配 && src.Status != ProductionOrderStatus.已完成))
+                        .ThenInclude(src => src.MaterialIssueOrders!)
+                    .Include(src => src.ProductionOrders!)
+                        .ThenInclude(src => src.WorkOrder!));
 
             return Ok(machines.Select(machine => new
             {

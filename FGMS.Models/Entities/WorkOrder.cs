@@ -21,6 +21,7 @@ namespace FGMS.Models.Entities
         public string AgvTaskCode { get; set; }
         public string AgvStatus { get; set; }
         public int? RenovateorId { get; set; }
+        public string? RepairEquipmentCode { get; set; }
 
         public virtual ProductionOrder? ProductionOrder { get; set; }
         public virtual UserInfo? UserInfo { get; set; }
@@ -47,9 +48,10 @@ namespace FGMS.Models.Entities
             builder.Property(x => x.CreateDate).HasDefaultValueSql("getdate()");
             builder.Property(x => x.RequiredDate);
             builder.Property(x => x.Remark).HasMaxLength(200);
-            builder.Property(x => x.AgvTaskCode).IsRequired().HasMaxLength(20).HasDefaultValue(Guid.NewGuid().ToString("N")[..16]);
+            builder.Property(x => x.AgvTaskCode).IsRequired().HasMaxLength(20);
             builder.Property(x => x.AgvStatus).IsRequired().HasMaxLength(20).HasDefaultValue("execute");
             builder.Property(x => x.RenovateorId);
+            builder.Property(x => x.RepairEquipmentCode).HasMaxLength(10);
             builder.HasOne(x => x.Parent).WithMany(x => x.Childrens).HasForeignKey(x => x.Pid).OnDelete(DeleteBehavior.Restrict);
             builder.HasOne(x => x.ProductionOrder).WithOne(x => x.WorkOrder).HasForeignKey<WorkOrder>(x => x.ProductionOrderId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
             builder.HasOne(x => x.UserInfo).WithMany(x => x.WorkOrders).HasForeignKey(x => x.UserInfoId).OnDelete(DeleteBehavior.Restrict);

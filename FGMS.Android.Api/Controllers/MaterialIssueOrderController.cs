@@ -72,7 +72,9 @@ namespace FGMS.Android.Api.Controllers
                 .AndIf(!string.IsNullOrEmpty(status), src => src.Status == Enum.Parse<MioStatus>(status!));
 
             var query = materialIssueOrderService.GetQueryable(expression, include: src => src.Include(src => src.Sendor!).Include(src => src.ProductionOrder!).ThenInclude(src => src.Equipment!))
-                .OrderByDescending(src => src.Id)
+                .OrderBy(src => src.Id)
+                .ThenBy(src => src.ProductionOrder!.MaterialSpec)
+                .ThenBy(src => src.ProductionOrder!.Equipment!.Code)
                 .AsNoTracking();
 
             int total = await query.CountAsync();
@@ -141,7 +143,7 @@ namespace FGMS.Android.Api.Controllers
                 //获取墨心库存位置
                 storagePosition = await businessService.GetStoragePositionsAsync(po.OrderNo);
 
-                if (string.IsNullOrEmpty(storagePosition.OutStoreOrderCode))
+                if (storagePosition == null || string.IsNullOrEmpty(storagePosition.OutStoreOrderCode))
                     return BadRequest(new { success = false, message = "墨心系统中未找到对应的出库申请，无法叫料" });
             }
 

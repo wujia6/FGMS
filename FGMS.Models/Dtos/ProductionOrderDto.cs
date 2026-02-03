@@ -24,6 +24,7 @@
         public double? WorkHours { get; set; }
         public DateTime? PlannedBeginTime { get; set; }
         public bool? IsDc { get; set; }
+        public bool? Report { get; set; }
 
         public WorkOrderDto? WorkOrderDto { get; set; }
         public List<MaterialIssueOrderDto>? MaterialIssueOrderDtos { get; set; }

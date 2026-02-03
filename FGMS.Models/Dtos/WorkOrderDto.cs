@@ -4,7 +4,7 @@
     {
         public int Id { get; set; }
         public int? Pid { get; set; }
-        //public int EquipmentId { get; set; }
+        public int EquipmentId { get; set; }
         public string? EquipmentCode { get; set; }
         public int ProductionOrderId { get; set; }
         public string? ProductionOrderNo { get; set; }
@@ -25,6 +25,7 @@
         public string? AgvStatus { get; set; }
         public string? Reason { get; set; }
         public string? RenovateorName { get; set; }
+        public string? RepairEquipmentCode { get; set; }
         public List<WorkOrderDto>? ChildrenDtos { get; set; }
         public List<ComponentDto>? ComponentDtos { get; set; }
         public List<StandardDto>? StandardDtos { get; set; }
