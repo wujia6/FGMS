@@ -8,6 +8,7 @@ namespace FGMS.Models.Entities
         public int Id { get; set; }
         public double Diameter { get; set; }
         public double StandardMinutes { get; set; }
+        public double? FyStandardMinutes { get; set; }
     }
 
     public class MaterialDiameterConfig : IEntityTypeConfiguration<MaterialDiameter>
@@ -17,6 +18,7 @@ namespace FGMS.Models.Entities
             builder.HasKey(md => md.Id);
             builder.Property(md => md.Diameter).HasPrecision(6,3).IsRequired();
             builder.Property(md => md.StandardMinutes).HasPrecision(6, 2).IsRequired();
+            builder.Property(md => md.FyStandardMinutes).HasPrecision(6, 2);
         }
     }
 }

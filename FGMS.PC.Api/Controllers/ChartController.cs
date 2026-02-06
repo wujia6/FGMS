@@ -39,7 +39,7 @@ namespace FGMS.PC.Api.Controllers
             IBrandService brandService, 
             IElementEntityService elementEntityService, 
             IEquipmentChangeOrderService equipmentOrderChangeService, 
-            IMaterialIssueOrderService materialIssueOrderService, 
+            IMaterialIssueOrderService materialIssueOrderService,
             IMapper mapper)
         {
             this.workOrderService = workOrderService;
@@ -157,7 +157,7 @@ namespace FGMS.PC.Api.Controllers
             return Ok(mapper.Map<List<EquipmentChangeOrderDto>>(entities));
         }
 
-        //===============================发料单===============================//
+        //===============================发料看板===============================//
 
         /// <summary>
         /// 获取发料单列表
@@ -181,5 +181,7 @@ namespace FGMS.PC.Api.Controllers
             var dtos = mapper.Map<List<MaterialIssueOrderDto>>(entities);
             return Ok(new { total, rows = dtos });
         }
+
+        //===============================生产看板===============================//
     }
 }

@@ -209,6 +209,23 @@ namespace FGMS.Android.Api.Controllers
             return success ? Ok(new { success, resultJson.message }) : BadRequest(new { success, resultJson.message });
         }
 
+        ///// <summary>
+        ///// 机台变更
+        ///// </summary>
+        ///// <param name="paramJson">{ 'poId': int, 'newEquId': int, 'oldEquCode': 'string', 'reason': 'string' }</param>
+        ///// <returns></returns>
+        //[HttpPost("equipment-change")]
+        //public Task<IActionResult> EquipmentChangeAsync([FromBody] dynamic paramJson)
+        //{
+        //    if (paramJson is null || paramJson.poId is null || paramJson.newEquId is null || paramJson.oldEquCode is null || paramJson.reason is null)
+        //        return Task.FromResult<IActionResult>(BadRequest(new { success = false, message = "参数错误" }));
+
+        //    int poId = paramJson.poId;
+        //    string newEquId = paramJson.newEquId;
+        //    string oldEquCode = paramJson.oldEquCode;
+        //    string reason = paramJson.reason;
+        //}
+
         //制令单顺序检查
         private static bool SequenceCheck(List<ProductionOrder> pos, int poId)
         {

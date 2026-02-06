@@ -21,6 +21,23 @@ namespace FGMS.Services.Implements
             this.equipmentRepository = equipmentRepository;
         }
 
+        //public async Task<dynamic> EquipmentChangeAsync(int poId, int newEquId, string reason, int userInfoId)
+        //{
+        //    var productionOrder = await productionOrderRepository.GetEntityAsync(
+        //        expression: src => src.Id == poId,
+        //        include: src => src.Include(src => src.WorkOrder!).Include(src => src.MaterialIssueOrders!).Include(src =>src.Equipment!));
+
+        //    if (productionOrder is null)
+        //        return new { success = false, message = "未知制令单" };
+
+        //    if (productionOrder.WorkOrder is not null || productionOrder.MaterialIssueOrders is not null || productionOrder.MaterialIssueOrders!.Any())
+        //        return new { success = false, message = "已申请砂轮或发料，无法更换机台" };
+
+        //    string oldEquCode = productionOrder.Equipment!.Code;
+        //    productionOrder.EquipmentId = newEquId;
+        //    productionOrder.Status = ProductionOrderStatus.机台变更;
+        //}
+
         public async Task<dynamic> MadeBeginAsync(int poid)
         {
             var productionOrder = await productionOrderRepository.GetEntityAsync(

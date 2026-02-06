@@ -18,8 +18,8 @@ namespace FGMS.Services.Implements
         private readonly IFgmsDbContext fgmsDbContext;
 
         public AgvTaskSyncService(
-            IBaseRepository<AgvTaskSync> repo, 
-            IFgmsDbContext context, 
+            IBaseRepository<AgvTaskSync> repo,
+            IFgmsDbContext context,
             IWorkOrderRepository workOrderRepository,
             IEquipmentRepository equipmentRepository,
             HttpClientHelper httpClientHelper) : base(repo, context)
@@ -33,6 +33,7 @@ namespace FGMS.Services.Implements
 
         public async Task CallbackAsync(string taskCode, string robotCode, string method)
         {
+            bool actionResult = false;
             switch (method)
             {
                 case "start":
@@ -48,7 +49,6 @@ namespace FGMS.Services.Implements
                         workOrder.ProductionOrder.Equipment;
 
                     string orgCode = equipment!.Organize!.Code;
-
                     var sync = new AgvTaskSync
                     {
                         AgvCode = robotCode,
@@ -57,36 +57,19 @@ namespace FGMS.Services.Implements
                         Start = workOrder.Type == WorkOrderType.砂轮申领 ? "GW1" : orgCode,
                         End = workOrder.Type == WorkOrderType.砂轮返修 || workOrder.Type == WorkOrderType.砂轮退仓 ? "GW2" : orgCode
                     };
-                    //switch (workOrder.Type)
-                    //{
-                    //    case WorkOrderType.砂轮申领:
-                    //        sync.Start = "GW1";
-                    //        sync.End = workOrder.ProductionOrder!.Equipment!.Organize!.Code;
-                    //        break;
-                    //    case WorkOrderType.砂轮返修:
-                    //        var equ =
-                    //            await equipmentRepository.GetEntityAsync(expression: src => src.Code.Equals(workOrder.RepairEquipmentCode), include: src => src.Include(src => src.Organize!)) ??
-                    //            throw new ArgumentNullException("未知返修设备");
-                    //        sync.Start = equ.Organize!.Code;
-                    //        sync.End = "GW2";
-                    //        break;
-                    //    case WorkOrderType.砂轮退仓:
-                    //        sync.Start = workOrder.ProductionOrder!.Equipment!.Organize!.Code;
-                    //        sync.End = "GW2";
-                    //        break;
-                    //    //default:
-                    //    //    break;
-                    //}
-                    agvRepository.AddEntity(sync);
+                    actionResult = agvRepository.AddEntity(sync);
                     break;
                 case "end":
                     var taskSync = await agvRepository.GetListAsync(expression: src => src.TaskCode.Equals(taskCode));
                     if (taskSync is not null && taskSync.Any())
-                        agvRepository.DeleteEntity(taskSync);
+                        actionResult = agvRepository.DeleteEntity(taskSync);
                     break;
                 default:
                     break;
             }
+
+            if (actionResult)
+                await fgmsDbContext.SaveChangesAsync();
         }
 
         public async Task<dynamic> ExecuteAgvTaskAsync(string taskType, string taskUrl, string taskCode, string? start = null, string? end = null)
@@ -150,8 +133,6 @@ namespace FGMS.Services.Implements
                         { "taskCode", taskCode }
                     };
                 }
-                
-                
 
                 var result = await httpClientHelper.PostAsync<dynamic>(taskUrl, taskParam);
                 bool success = success = int.Parse(result.code.ToString()) == 0 && await fgmsDbContext.SaveChangesAsync() > 0;
