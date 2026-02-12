@@ -11,6 +11,7 @@ namespace FGMS.Mx.Core
         DbSet<T> Set<T>() where T : class;
         DbSet<OutboundMaterial> OutboundMaterials { get; set; }
         DbSet<StoragePosition> StoragePositions { get; set; }
+        DbSet<WorkReport> WorkReports { get; set; }
         DatabaseFacade DataBase { get; }
     }
 }

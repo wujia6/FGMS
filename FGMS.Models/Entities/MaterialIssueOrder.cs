@@ -43,9 +43,9 @@ namespace FGMS.Models.Entities
             builder.Property(x => x.Quantity).IsRequired();
             builder.Property(x => x.IssueTime).HasDefaultValueSql("getdate()");
             builder.Property(x => x.Status).HasDefaultValue(MioStatus.待备料);
-            builder.Property(x => x.MxWareHouse).HasMaxLength(100);
-            builder.Property(x => x.MxCargoSpace).HasMaxLength(100);
-            builder.Property(x => x.MxBarCode).HasMaxLength(100);
+            builder.Property(x => x.MxWareHouse).HasMaxLength(200);
+            builder.Property(x => x.MxCargoSpace).HasMaxLength(200);
+            builder.Property(x => x.MxBarCode).HasMaxLength(500);
             builder.HasOne(x => x.ProductionOrder).WithMany(x => x.MaterialIssueOrders).HasForeignKey(x => x.ProductionOrderId).OnDelete(DeleteBehavior.Cascade);
             builder.HasOne(x => x.Createor).WithMany().HasForeignKey(x => x.CreateorId).OnDelete(DeleteBehavior.Restrict);
             builder.HasOne(x => x.Sendor).WithMany().HasForeignKey(x => x.SendorId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);

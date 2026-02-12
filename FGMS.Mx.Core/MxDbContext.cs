@@ -10,6 +10,7 @@ namespace FGMS.Mx.Core
     {
         public DbSet<OutboundMaterial> OutboundMaterials { get; set; } = default!;
         public DbSet<StoragePosition> StoragePositions { get; set; } = default!;
+        public DbSet<WorkReport> WorkReports { get; set; } = default!;
 
         public DatabaseFacade DataBase => base.Database;
 
@@ -29,6 +30,7 @@ namespace FGMS.Mx.Core
         {
             modelBuilder.Entity<OutboundMaterial>().HasNoKey();
             modelBuilder.Entity<StoragePosition>().HasNoKey();
+            modelBuilder.Entity<WorkReport>().HasNoKey();
             base.OnModelCreating(modelBuilder);
         }
     }

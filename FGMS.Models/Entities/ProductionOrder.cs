@@ -24,6 +24,8 @@ namespace FGMS.Models.Entities
         public DateTime? PlannedBeginTime { get; set; }
         public bool? IsDc { get; set; }
         public bool? Report { get; set; }
+        public DateTime? PlannedEndTime { get; set; }
+        public DateTime? CompletedTime { get; set; }
 
         public virtual UserInfo? UserInfo { get; set; }
         public virtual Equipment? Equipment { get; set; }
@@ -54,6 +56,8 @@ namespace FGMS.Models.Entities
             builder.Property(x => x.PlannedBeginTime);
             builder.Property(x => x.IsDc).HasDefaultValue(false);
             builder.Property(x => x.Report).HasDefaultValue(false);
+            builder.Property(x => x.PlannedEndTime);
+            builder.Property(x => x.CompletedTime);
             builder.HasOne(x => x.WorkOrder).WithOne(x => x.ProductionOrder).HasForeignKey<ProductionOrder>(x => x.WorkOrderId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
             builder.HasOne(x => x.Equipment).WithMany(x => x.ProductionOrders).HasForeignKey(x => x.EquipmentId).OnDelete(DeleteBehavior.Restrict);
             builder.HasOne(x => x.UserInfo).WithMany().HasForeignKey(x => x.UserInfoId).OnDelete(DeleteBehavior.Restrict);

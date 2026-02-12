@@ -61,5 +61,14 @@ namespace FGMS.Mx.Repositories
             };
             await mxDbContext.DataBase.ExecuteSqlRawAsync(sql, sqlParams);
         }
+
+        public async Task<WorkReport> ReportSummaryAsync(string strWhere)
+        {
+            string sql = $@"select sum(good_products) goodNum, sum(total_defective_products) failNum, round(sum(total_defective_products)/sum(total_complete_quantity)*100,2) failRatio 
+                from sc_report_work 
+                where processId=1 and delete_time is null {strWhere}";
+
+            return await mxDbContext.WorkReports.FromSqlRaw(sql).FirstOrDefaultAsync();
+        }
     }
 }

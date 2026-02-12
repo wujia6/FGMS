@@ -22,6 +22,11 @@ namespace FGMS.Mx.Services
             return await businessRepository.GetStoragePositionsAsync(code);
         }
 
+        public Task<WorkReport> ReportSummaryAsync(string strWhere)
+        {
+            return businessRepository.ReportSummaryAsync(strWhere);
+        }
+
         public async Task UpdateProductionOrderStatus(string poNo, string status)
         {
             await businessRepository.UpdateProductionOrderStatus(poNo, status);

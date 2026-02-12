@@ -73,7 +73,7 @@ namespace FGMS.Android.Api.Controllers
 
             var query = materialIssueOrderService.GetQueryable(expression, include: src => src.Include(src => src.Sendor!).Include(src => src.ProductionOrder!).ThenInclude(src => src.Equipment!))
                 .OrderBy(src => src.Id)
-                .ThenBy(src => src.ProductionOrder!.MaterialSpec)
+                .ThenBy(src => src.MxCargoSpace)
                 .ThenBy(src => src.ProductionOrder!.Equipment!.Code)
                 .AsNoTracking();
 
