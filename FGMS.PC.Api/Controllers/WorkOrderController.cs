@@ -1,5 +1,4 @@
-﻿using System.Linq.Dynamic.Core;
-using System.Linq.Expressions;
+﻿using System.Linq.Expressions;
 using FGMS.Models;
 using FGMS.Models.Dtos;
 using FGMS.Models.Entities;
@@ -36,15 +35,14 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="workOrderStandardService"></param>
         /// <param name="componentService"></param>
         /// <param name="cargoSpaceService"></param>
-        /// <param name="elementEntityService"></param>
         /// <param name="randomNumber"></param>
         /// <param name="mapper"></param>
         public WorkOrderController(
-            IWorkOrderService workOrderService, 
-            IWorkOrderStandardService workOrderStandardService, 
-            IComponentService componentService, 
-            ICargoSpaceService cargoSpaceService, 
-            GenerateRandomNumber randomNumber, 
+            IWorkOrderService workOrderService,
+            IWorkOrderStandardService workOrderStandardService,
+            IComponentService componentService,
+            ICargoSpaceService cargoSpaceService,
+            GenerateRandomNumber randomNumber,
             IMapper mapper)
         {
             this.workOrderService = workOrderService;

@@ -18,7 +18,7 @@ namespace FGMS.Mx.Repositories
         {
             //var codeList = codes.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).ToList();
             var sql = $@"
-                SELECT c.`code` as ProductionOrderCode, a.label_code as BarCode
+                SELECT c.`code` as ProductionOrderCode, b.state as State, a.label_code as BarCode
                 FROM cr_out_store_application_many a
                 LEFT JOIN cr_out_store_application b ON a.oneId = b.id
                 LEFT JOIN sc_production_order c ON b.productionOrderId = c.id
@@ -69,6 +69,14 @@ namespace FGMS.Mx.Repositories
                 where processId=1 and delete_time is null {strWhere}";
 
             return await mxDbContext.WorkReports.FromSqlRaw(sql).FirstOrDefaultAsync();
+        }
+
+        public bool IsOutStoreAsync(string productionOrderNo)
+        {
+            var outboundMaterial = GetBarcodesAsync(productionOrderNo).Result.FirstOrDefault();
+            if (outboundMaterial is null)
+                return false;
+            return outboundMaterial.State == "已出库";
         }
     }
 }

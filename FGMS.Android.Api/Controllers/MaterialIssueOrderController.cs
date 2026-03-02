@@ -72,9 +72,10 @@ namespace FGMS.Android.Api.Controllers
                 .AndIf(!string.IsNullOrEmpty(status), src => src.Status == Enum.Parse<MioStatus>(status!));
 
             var query = materialIssueOrderService.GetQueryable(expression, include: src => src.Include(src => src.Sendor!).Include(src => src.ProductionOrder!).ThenInclude(src => src.Equipment!))
-                .OrderBy(src => src.Id)
-                .ThenBy(src => src.MxCargoSpace)
-                .ThenBy(src => src.ProductionOrder!.Equipment!.Code)
+                .OrderBy(src => src.MaterialNo)
+                //.OrderBy(src => src.Id)
+                //.ThenBy(src => src.MxCargoSpace)
+                //.ThenBy(src => src.ProductionOrder!.Equipment!.Code)
                 .AsNoTracking();
 
             int total = await query.CountAsync();
@@ -195,10 +196,20 @@ namespace FGMS.Android.Api.Controllers
                 return BadRequest(new { success = false, message = "参数错误" });
 
             int[] ids = JsonConvert.DeserializeObject<int[]>(paramJson.ids.ToString());
-            var mios = await materialIssueOrderService.ListAsync(src => ids.Contains(src.Id));
+            var mios = await materialIssueOrderService.ListAsync(src => ids.Contains(src.Id), include: src => src.Include(src => src.ProductionOrder!));
 
             if (!mios.Any())
                 return BadRequest(new { success = false, message = "未知发料单" });
+
+            //foreach (var mio in mios)
+            //{
+            //    if (mio.ProductionOrder is null)
+            //        return BadRequest(new { success = false, message = $"未知制令单" });
+
+            //    bool isOutStore = businessService.IsOutStoreAsync(mio.ProductionOrder.OrderNo);
+            //    if (!isOutStore)
+            //        return BadRequest(new { success = false, message = $"{mio.ProductionOrder.OrderNo}墨心系统未出库" });
+            //}
 
             mios.ForEach(src => src.Status = MioStatus.待出库);
             bool success = await materialIssueOrderService.UpdateAsync(mios, new Expression<Func<MaterialIssueOrder, object>>[] { src => src.Status });

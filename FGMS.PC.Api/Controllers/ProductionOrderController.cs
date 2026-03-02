@@ -38,15 +38,17 @@ namespace FGMS.PC.Api.Controllers
         /// </summary>
         /// <param name="pageIndex">页码</param>
         /// <param name="pageSize">记录数</param>
-        /// <param name="keyword">关键字：单号、成品料号、机台编码</param>
+        /// <param name="equCode">设备</param>
+        /// <param name="keyword">关键字：单号、成品料号</param>
         /// <param name="status">状态</param>
         /// <returns></returns>
         [HttpGet("list")]
         [PermissionAsync("production_order_management", "view", "电脑")]
-        public async Task<IActionResult> ListAsync(int? pageIndex, int? pageSize, string? keyword, string? status)
+        public async Task<IActionResult> ListAsync(int? pageIndex, int? pageSize, string? equCode, string? keyword, string? status)
         {
             var expression = ExpressionBuilder.GetTrue<ProductionOrder>()
-                .AndIf(!string.IsNullOrEmpty(keyword), x => x.OrderNo!.Contains(keyword!) || x.FinishCode!.Contains(keyword!) || x.Equipment!.Code!.Contains(keyword!) || x.MaterialCode.Contains(keyword!))
+                .AndIf(!string.IsNullOrEmpty(equCode), x => x.Equipment!.Code.Equals(equCode))
+                .AndIf(!string.IsNullOrEmpty(keyword), x => x.OrderNo!.Contains(keyword!) || x.FinishCode!.Contains(keyword!) || x.MaterialCode.Contains(keyword!))
                 .AndIf(!string.IsNullOrEmpty(status), x => x.Status == Enum.Parse<ProductionOrderStatus>(status!));
             
             var query = productionOrderService.GetQueryable(

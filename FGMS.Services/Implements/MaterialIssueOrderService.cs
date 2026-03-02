@@ -19,10 +19,10 @@ namespace FGMS.Services.Implements
         private readonly IFgmsDbContext fgmsDbContext;
 
         public MaterialIssueOrderService(
-            IBaseRepository<MaterialIssueOrder> repo, 
+            IBaseRepository<MaterialIssueOrder> repo,
             IProductionOrderRepository productionOrderRepository,
             IUserInfoRepository userInfoRepository,
-            IBusinessRepository businessRepository, 
+            IBusinessRepository businessRepository,
             IFgmsDbContext context) : base(repo, context)
         {
             materialIssueOrderRepository = repo as IMaterialIssueOrderRepository ?? throw new ArgumentNullException(nameof(repo));

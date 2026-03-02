@@ -11,5 +11,7 @@ namespace FGMS.Mx.Repositories
         public Task UpdateProductionOrderStatus(string poNo, string status);
 
         public Task<WorkReport> ReportSummaryAsync(string strWhere);
+
+        public bool IsOutStoreAsync(string productionOrderNo);
     }
 }
