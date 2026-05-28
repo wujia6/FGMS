@@ -25,7 +25,7 @@ namespace FGMS.Utils
 
                 //注册实体应用服务
                 builder.RegisterAssemblyTypes(ApplicationFactory.GetAssembly("FGMS.Services"))
-                    .Where(tp => tp.Name.EndsWith("Service") && !tp.IsInterface && !tp.IsAbstract)
+                    .Where(tp => tp.Name.EndsWith("Service") && !tp.Name.StartsWith("OrderCallTask") && !tp.IsInterface && !tp.IsAbstract)//不自动注册OrderCallTaskService，避免与定时任务冲突
                     .AsImplementedInterfaces()
                     .InstancePerLifetimeScope();
 

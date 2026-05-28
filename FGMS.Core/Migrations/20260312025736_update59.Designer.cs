@@ -4,6 +4,7 @@ using FGMS.Core.EfCore.Implements;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FGMS.Core.Migrations
 {
     [DbContext(typeof(FgmsDbContext))]
-    partial class FgmsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260312025736_update59")]
+    partial class update59
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -476,6 +478,54 @@ namespace FGMS.Core.Migrations
                     b.ToTable("Equipments");
                 });
 
+            modelBuilder.Entity("FGMS.Models.Entities.EquipmentChangeOrder", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+
+                    b.Property<DateTime?>("ChangeDate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("getdate()");
+
+                    b.Property<int>("EquipmentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("OldEquipmentCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("ProductionOrderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("UserInfoId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EquipmentId");
+
+                    b.HasIndex("ProductionOrderId");
+
+                    b.HasIndex("UserInfoId");
+
+                    b.ToTable("EquipmentChangeOrders");
+                });
+
             modelBuilder.Entity("FGMS.Models.Entities.MaterialDiameter", b =>
                 {
                     b.Property<int>("Id")
@@ -798,34 +848,6 @@ namespace FGMS.Core.Migrations
                     b.HasIndex("UserInfoId");
 
                     b.ToTable("ProductionOrders");
-                });
-
-            modelBuilder.Entity("FGMS.Models.Entities.ProductionOrderLog", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
-                    b.Property<string>("Operation")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<DateTime?>("OperationTime")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("getdate()");
-
-                    b.Property<string>("Operator")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ProductionOrderLogs");
                 });
 
             modelBuilder.Entity("FGMS.Models.Entities.RoleInfo", b =>
@@ -1194,6 +1216,33 @@ namespace FGMS.Core.Migrations
                     b.Navigation("Organize");
                 });
 
+            modelBuilder.Entity("FGMS.Models.Entities.EquipmentChangeOrder", b =>
+                {
+                    b.HasOne("FGMS.Models.Entities.Equipment", "Equipment")
+                        .WithMany()
+                        .HasForeignKey("EquipmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FGMS.Models.Entities.ProductionOrder", "ProductionOrder")
+                        .WithMany()
+                        .HasForeignKey("ProductionOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FGMS.Models.Entities.UserInfo", "UserInfo")
+                        .WithMany()
+                        .HasForeignKey("UserInfoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Equipment");
+
+                    b.Navigation("ProductionOrder");
+
+                    b.Navigation("UserInfo");
+                });
+
             modelBuilder.Entity("FGMS.Models.Entities.MaterialIssueOrder", b =>
                 {
                     b.HasOne("FGMS.Models.Entities.UserInfo", "Createor")
@@ -1365,7 +1414,7 @@ namespace FGMS.Core.Migrations
                     b.HasOne("FGMS.Models.Entities.UserInfo", "UserInfo")
                         .WithMany("WorkOrders")
                         .HasForeignKey("UserInfoId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Parent");

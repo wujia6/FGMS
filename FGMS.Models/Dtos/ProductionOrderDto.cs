@@ -27,6 +27,7 @@
         public bool? Report { get; set; }
         public DateTime? PlannedEndTime { get; set; }
         public DateTime? CompletedTime { get; set; }
+        public bool RequireWheel { get; set; }
 
         public WorkOrderDto? WorkOrderDto { get; set; }
         public List<MaterialIssueOrderDto>? MaterialIssueOrderDtos { get; set; }

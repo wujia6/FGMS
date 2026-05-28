@@ -46,24 +46,6 @@ namespace FGMS.Repositories.Implements
             return repository.Update(entity, fields);
         }
 
-        public async Task<T> GetEntityAsync(Expression<Func<T, bool>> expression, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null)
-        {
-            IQueryable<T> query = repository.Entities;
-            if (include != null)
-                query = include(query);
-            return await query.FirstOrDefaultAsync(expression);
-        }
-
-        public async Task<IEnumerable<T>> GetListAsync(Expression<Func<T, bool>>? expression = null, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null)
-        {
-            IQueryable<T> query = repository.Entities;  // 获取初始 IQueryable，不修改原始属性
-            if (include != null)
-                query = include(query);
-            if (expression != null)
-                query = query.Where(expression);
-            return await query.ToListAsync();
-        }
-
         public IQueryable<T> GetQueryable(Expression<Func<T, bool>>? expression = null, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null)
         {
             //IQueryable<T> query = repository.Entities;  // 获取初始 IQueryable，不修改原始属性
@@ -73,6 +55,29 @@ namespace FGMS.Repositories.Implements
             //    query = query.Where(expression);
             //return query;
             return new QueryableBuilder<T>(repository.Entities).Where(expression).Include(include).Build();
+        }
+
+        public async Task<T> GetEntityAsync(Expression<Func<T, bool>> expression, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null)
+        {
+            IQueryable<T> query = repository.Entities;
+            if (include != null)
+                query = include(query);
+            return await query.FirstOrDefaultAsync(expression);
+        }
+
+        public async Task<IEnumerable<T>> GetListAsync(Expression<Func<T, bool>>? expression = null, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null, bool asNoTracking = true)
+        {
+            IQueryable<T> query = repository.Entities;  // 获取初始 IQueryable，不修改原始属性
+            if (include != null)
+                query = include(query);
+            if (expression != null)
+                query = query.Where(expression);
+            return asNoTracking ? await query.AsNoTracking().ToListAsync() : await query.ToListAsync();
+        }
+
+        public async Task<bool> ExistsAsync(Expression<Func<T, bool>> expression)
+        {
+            return await repository.Entities.AnyAsync(expression);
         }
     }
 }

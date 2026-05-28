@@ -8,6 +8,7 @@ using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 
 namespace FGMS.PC.Api.Controllers
 {
@@ -20,16 +21,19 @@ namespace FGMS.PC.Api.Controllers
     public class ProductionOrderController : ControllerBase
     {
         private readonly IProductionOrderService productionOrderService;
+        private readonly IProductionOrderLogService productionOrderLogService;
         private readonly IMapper mapper;
 
         /// <summary>
         /// 
         /// </summary>
         /// <param name="productionOrderService"></param>
+        /// <param name="productionOrderLogService"></param>
         /// <param name="mapper"></param>
-        public ProductionOrderController(IProductionOrderService productionOrderService, IMapper mapper)
+        public ProductionOrderController(IProductionOrderService productionOrderService, IProductionOrderLogService productionOrderLogService, IMapper mapper)
         {
             this.productionOrderService = productionOrderService;
+            this.productionOrderLogService = productionOrderLogService;
             this.mapper = mapper;
         }
 
@@ -50,9 +54,9 @@ namespace FGMS.PC.Api.Controllers
                 .AndIf(!string.IsNullOrEmpty(equCode), x => x.Equipment!.Code.Equals(equCode))
                 .AndIf(!string.IsNullOrEmpty(keyword), x => x.OrderNo!.Contains(keyword!) || x.FinishCode!.Contains(keyword!) || x.MaterialCode.Contains(keyword!))
                 .AndIf(!string.IsNullOrEmpty(status), x => x.Status == Enum.Parse<ProductionOrderStatus>(status!));
-            
+
             var query = productionOrderService.GetQueryable(
-                expression, 
+                expression,
                 include: x => x.Include(x => x.UserInfo!)
                     .Include(x => x.WorkOrder!)
                     .Include(x => x.Equipment!).ThenInclude(x => x.Organize!)
@@ -84,6 +88,27 @@ namespace FGMS.PC.Api.Controllers
         }
 
         /// <summary>
+        /// 获取制令单日志列表
+        /// </summary>
+        /// <param name="pageIndex">页码</param>
+        /// <param name="pageSize">记录数</param>
+        /// <param name="keyword">关键字：操作内容</param>
+        /// <returns></returns>
+        [HttpGet("logList")]
+        [PermissionAsync("production_order_management", "view", "电脑")]
+        public async Task<IActionResult> LogListAsync(int? pageIndex, int? pageSize, string? keyword)
+        {
+            var expression = ExpressionBuilder.GetTrue<ProductionOrderLog>().AndIf(!string.IsNullOrEmpty(keyword), x => x.Operation!.Contains(keyword!));
+            var query = productionOrderLogService.GetQueryable(expression).AsNoTracking();
+            int total = await query.CountAsync();
+            if (pageIndex.HasValue && pageSize.HasValue)
+                query = query.Skip((pageIndex.Value - 1) * pageSize.Value).Take(pageSize.Value);
+            var list = await query.ToListAsync();
+            var dtos = mapper.Map<List<ProductionOrderLogDto>>(list);
+            return Ok(new { total, rows = dtos });
+        }
+
+        /// <summary>
         /// 添加制令单
         /// </summary>
         /// <param name="dto">JSON</param>
@@ -95,6 +120,39 @@ namespace FGMS.PC.Api.Controllers
             var entity = mapper.Map<ProductionOrder>(dto);
             bool success = await productionOrderService.AddAsync(entity);
             return success ? new { success, message = "添加成功" } : new { success, message = "添加失败" };
+        }
+
+        /// <summary>
+        /// 删除制令单（级联删除相关的砂轮工单和发料单）
+        /// </summary>
+        /// <param name="paramJson">{ 'pono':'string' }</param>
+        /// <returns></returns>
+        [AllowAnonymous]
+        [HttpPost("remove")]
+        //[PermissionAsync("production_order_management", "management", "电脑")]
+        public async Task<IActionResult> RemoveAsync([FromBody] dynamic paramJson)
+        {
+            if (paramJson is null || paramJson.pono is null)
+                return BadRequest(new { success = false, message = "参数错误" });
+            string pono = paramJson.pono;
+            var result = await productionOrderService.CascadeRemoveAsync(pono);
+            var jsonResult = JsonConvert.DeserializeObject(JsonConvert.SerializeObject(result));
+            bool success = jsonResult.success;
+            return success ? Ok(jsonResult) : BadRequest(jsonResult);
+        }
+
+        /// <summary>
+        /// 添加制令单日志
+        /// </summary>
+        /// <param name="dto">JSON</param>
+        /// <returns></returns>
+        [AllowAnonymous]
+        [HttpPost("addLog")]
+        public async Task<IActionResult> LogAsync([FromBody] ProductionOrderLogDto dto)
+        {
+            var entity = mapper.Map<ProductionOrderLog>(dto);
+            bool success = await productionOrderLogService.AddAsync(entity);
+            return success ? Ok(new { success, message = "添加成功" }) : BadRequest(new { success, message = "添加失败" });
         }
     }
 }

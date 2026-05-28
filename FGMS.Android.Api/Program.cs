@@ -4,6 +4,8 @@ using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using FGMS.Android.Api.Middleware;
 using FGMS.Models;
+using FGMS.Services.Implements;
+using FGMS.Services.Interfaces;
 using FGMS.Utils;
 using MapsterMapper;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -81,6 +83,34 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 // 添加HttpClient支持
 builder.Services.AddHttpClient();
 
+// 添加健康检查
+builder.Services.AddHealthChecks();
+
+// 配置定时任务设置
+builder.Services.Configure<TimerSettings>(builder.Configuration.GetSection("TimerSettings"));
+
+// autofac
+builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory()).ConfigureContainer<ContainerBuilder>(builder =>
+{
+    //autofac模块注入
+    builder.RegisterModule<AutofacModule>();
+    // 注入定时任务，BackgroundService 必须是单例
+    builder.RegisterType<OrderCallTaskService>().As<IOrderCallTaskService>().As<IHostedService>().SingleInstance();
+    //mapster注入
+    builder.RegisterInstance(MapsterAdaptConifg.Initial());
+    builder.RegisterType<ServiceMapper>().As<IMapper>().InstancePerLifetimeScope();
+    //httpcontext注入
+    builder.RegisterType<HttpContextAccessor>().As<IHttpContextAccessor>().InstancePerLifetimeScope();
+    //HttpClientHelper帮助类
+    builder.RegisterType<HttpClientHelper>().AsSelf().SingleInstance();
+    //appsettings帮助类
+    builder.RegisterType<ConfigHelper>().AsSelf().InstancePerLifetimeScope();
+    //在线用户 InstancePerLifetimeScope() 通常对应每个 HTTP 请求一个实例
+    builder.RegisterType<UserOnline>().AsSelf().InstancePerLifetimeScope();
+    //随机数类
+    builder.RegisterType<GenerateRandomNumber>().AsSelf().SingleInstance();
+});
+
 // 配置Serilog - 输出到控制台和本地文件
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information() // 设置最小日志级别
@@ -99,26 +129,6 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 builder.Host.UseSerilog();  // 使用Serilog替代默认日志系统
-
-// autofac
-builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory()).ConfigureContainer<ContainerBuilder>(builder =>
-{
-    //autofac模块注入
-    builder.RegisterModule<AutofacModule>();
-    //mapster注入
-    builder.RegisterInstance(MapsterAdaptConifg.Initial());
-    builder.RegisterType<ServiceMapper>().As<IMapper>().InstancePerLifetimeScope();
-    //httpcontext注入
-    builder.RegisterType<HttpContextAccessor>().As<IHttpContextAccessor>().InstancePerLifetimeScope();
-    //HttpClientHelper帮助类
-    builder.RegisterType<HttpClientHelper>().AsSelf().SingleInstance();
-    //appsettings帮助类
-    builder.RegisterType<ConfigHelper>().AsSelf().InstancePerLifetimeScope();
-    //在线用户 InstancePerLifetimeScope() 通常对应每个 HTTP 请求一个实例
-    builder.RegisterType<UserOnline>().AsSelf().InstancePerLifetimeScope();
-    //随机数类
-    builder.RegisterType<GenerateRandomNumber>().AsSelf().SingleInstance();
-});
 
 // 中间件
 var app = builder.Build();

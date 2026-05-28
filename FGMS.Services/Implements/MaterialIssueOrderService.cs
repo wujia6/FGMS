@@ -6,6 +6,7 @@ using FGMS.Mx.Repositories;
 using FGMS.Repositories.Interfaces;
 using FGMS.Services.Interfaces;
 using FGMS.Utils;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace FGMS.Services.Implements

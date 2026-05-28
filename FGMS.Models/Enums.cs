@@ -16,8 +16,7 @@
     {
         砂轮申领 = 1,
         砂轮返修 = 2,
-        砂轮退仓 = 3,
-        //机台更换 = 4
+        砂轮退仓 = 3
     }
 
     public enum WorkOrderStatus
@@ -37,7 +36,7 @@
         呼叫AGV = 12,
         取消 = 13,
         挂起 = 14,
-        机台变更 = 15
+        变更 = 15
     }
 
     public enum WorkOrderPriority
@@ -83,8 +82,7 @@
         已收料 = 2,
         生产中 = 3,
         已完成 = 4,
-        已暂停 = 5,
-        机台变更 = 6
+        已暂停 = 5
     }
 
     public enum MioType

@@ -4,22 +4,24 @@ namespace FGMS.Services.Interfaces
 {
     public interface IWorkOrderService : IBaseService<WorkOrder>
     {
-        public Task<dynamic> ReceiveAsync(dynamic paramJson);
+        Task<dynamic> ReceiveAsync(dynamic paramJson);
 
-        public Task<dynamic> CancelAsync(int orderId);
+        Task<dynamic> CancelAsync(int orderId);
 
-        public Task<dynamic> ReadyAsync(dynamic paramJson);
+        Task<dynamic> ReadyAsync(dynamic paramJson);
 
-        public Task<dynamic> RenovatedAsync(ElementEntity entity, string workOrderNo, int renovateorId);
+        Task<dynamic> RenovatedAsync(ElementEntity entity, string workOrderNo, int renovateorId);
 
-        public Task<dynamic> ReadyActionAsync(dynamic paramJson);
+        Task<dynamic> ReadyActionAsync(dynamic paramJson);
 
-        public Task<dynamic> AuditAsync(dynamic paramJson);
+        Task<dynamic> AuditAsync(dynamic paramJson);
 
-        public Task<dynamic> MachineUpperAsync(int orderId);
+        Task<dynamic> MachineUpperAsync(int orderId);
 
-        public Task<dynamic> MachineDownAsync(List<Component> components);
+        Task<dynamic> MachineDownAsync(List<Component> components);
 
-        public Task<dynamic> WheelBackStockAsync(int woId);
+        Task<dynamic> WheelBackStockAsync(int woId);
+
+        Task<dynamic> UnbindProductionAsync(string orderNo);
     }
 }

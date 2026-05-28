@@ -104,6 +104,8 @@ namespace FGMS.Utils
                 .Map(dest => dest.WorkOrderDto, src => src.WorkOrder)
                 .IgnoreNullValues(true);
 
+            config.ForType<ProductionOrderLog, ProductionOrderLogDto>().IgnoreNullValues(true);
+
             config.ForType<MaterialIssueOrder, MaterialIssueOrderDto>()
                 .Map(dest => dest.CreateorName, src => src.Createor!.Name)
                 .Map(dest => dest.SendorName, src => src.Sendor != null ? src.Sendor!.Name : string.Empty)
@@ -112,14 +114,6 @@ namespace FGMS.Utils
                 .Map(dest => dest.OrganizeCode, src => src.ProductionOrder!.Equipment!.Organize!.Code)
                 .Map(dest => dest.Type, src => Enum.GetName(typeof(MioType), src.Type))
                 .Map(dest => dest.Status, src => Enum.GetName(typeof(MioStatus), src.Status!.Value))
-                .IgnoreNullValues(true);
-
-            config.ForType<EquipmentChangeOrder, EquipmentChangeOrderDto>()
-                .Map(dest => dest.UserInfoName, src => src.UserInfo!.Name)
-                .Map(dest => dest.ProductionOrderNo, src => src.ProductionOrder!.OrderNo)
-                .Map(dest => dest.EquipmentCode, src => src.Equipment!.Code)
-                .Map(dest => dest.OrganizeCode, src => src.Equipment!.Organize!.Code)
-                .Map(dest => dest.Status, src => Enum.GetName(typeof(WorkOrderStatus), src.Status!.Value))
                 .IgnoreNullValues(true);
 
             config.ForType<WorkOrder, WorkOrderDto>()

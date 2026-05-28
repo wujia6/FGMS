@@ -13,30 +13,28 @@ namespace FGMS.Services.Implements
         private readonly IFgmsDbContext fgmsDbContext;
         private readonly IProductionOrderRepository productionOrderRepository;
         private readonly IEquipmentRepository equipmentRepository;
+        private readonly IMaterialIssueOrderRepository materialIssueOrderRepository;
+        private readonly IWorkOrderRepository workOrderRepository;
+        private readonly IComponentRepository componentRepository;
+        private readonly IElementEntityRepository elementEntityRepository;
 
-        public ProductionOrderService(IFgmsDbContext context, IBaseRepository<ProductionOrder> repo, IEquipmentRepository equipmentRepository) : base(repo, context)
+        public ProductionOrderService(
+            IFgmsDbContext context, 
+            IBaseRepository<ProductionOrder> repo,
+            IEquipmentRepository equipmentRepository,
+            IMaterialIssueOrderRepository materialIssueOrderRepository,
+            IWorkOrderRepository workOrderRepository,
+            IComponentRepository componentRepository,
+            IElementEntityRepository elementEntityRepository) : base(repo, context)
         {
             fgmsDbContext = context ?? throw new ArgumentNullException(nameof(context));
             productionOrderRepository = repo as IProductionOrderRepository ?? throw new ArgumentNullException(nameof(repo));
             this.equipmentRepository = equipmentRepository;
+            this.materialIssueOrderRepository = materialIssueOrderRepository;
+            this.workOrderRepository = workOrderRepository;
+            this.componentRepository = componentRepository;
+            this.elementEntityRepository = elementEntityRepository;
         }
-
-        //public async Task<dynamic> EquipmentChangeAsync(int poId, int newEquId, string reason, int userInfoId)
-        //{
-        //    var productionOrder = await productionOrderRepository.GetEntityAsync(
-        //        expression: src => src.Id == poId,
-        //        include: src => src.Include(src => src.WorkOrder!).Include(src => src.MaterialIssueOrders!).Include(src =>src.Equipment!));
-
-        //    if (productionOrder is null)
-        //        return new { success = false, message = "未知制令单" };
-
-        //    if (productionOrder.WorkOrder is not null || productionOrder.MaterialIssueOrders is not null || productionOrder.MaterialIssueOrders!.Any())
-        //        return new { success = false, message = "已申请砂轮或发料，无法更换机台" };
-
-        //    string oldEquCode = productionOrder.Equipment!.Code;
-        //    productionOrder.EquipmentId = newEquId;
-        //    productionOrder.Status = ProductionOrderStatus.机台变更;
-        //}
 
         public async Task<dynamic> MadeBeginAsync(int poid)
         {
@@ -94,79 +92,137 @@ namespace FGMS.Services.Implements
             }
         }
 
-        //public async Task<dynamic> CreateWheelAndMaterialAsync(int poid, int? qty)
+        //public async Task<dynamic> EquipmentChangeAsync(int poId, int equId, string oldEquCode, string reason, int userInfoId)
         //{
+        //    var productionOrder = await productionOrderRepository.GetEntityAsync(
+        //        expression: src => src.Id == poId,
+        //        include: src => src.Include(src => src.WorkOrder!).Include(src => src.MaterialIssueOrders!).Include(src => src.Equipment!));
+
+        //    if (productionOrder is null)
+        //        return new { success = false, message = "未知制令单" };
+
+        //    if (productionOrder.WorkOrder != null && productionOrder.WorkOrder.Status != WorkOrderStatus.机台接收)
+        //        return new { success = false, message = "已申请砂轮，请接收后再创建变更申请" };
+
+        //    if (productionOrder.MaterialIssueOrders!.Any(src => src.Type == MioType.发料 && src.Status != MioStatus.已接收))
+        //        return new { success = false, message = "已申请发料，请接收后再创建变更申请" };
+
         //    await fgmsDbContext.BeginTrans();
         //    try
         //    {
-        //        var poModel = await productionOrderRepository!.GetEntityAsync(expression:x => x.Id == poid, include: src => src.Include(src => src.MaterialIssueOrders!));
-
-        //        if (poModel == null)
-        //            return new { success = false, message = "未知制令单" };
-
-        //        if (poModel.MaterialIssueOrders!.Count() == 2)
-        //            return new { success = false, message = "制令单超出发料次数限制" };
-
-        //        var mioEntity = new MaterialIssueOrder
+        //        //添加机台变更单
+        //        equipmentChangeOrderRepository.AddEntity(new EquipmentChangeOrder
         //        {
-        //            ProductionOrderId = poModel.Id,
-        //            OrderNo = $"MIO{randomNumber!.CreateOrderNum()}",
-        //            MaterialNo = poModel.MaterialCode,
-        //            MaterialName = poModel.MaterialName,
-        //            MaterialSpce = poModel.MaterialSpec
-        //        };
-
-        //        switch (poModel.Status)
+        //            ProductionOrderId = poId,
+        //            UserInfoId = userInfoId,
+        //            EquipmentId = equId,
+        //            OldEquipmentCode = oldEquCode,
+        //            Reason = reason
+        //        });
+        //        //更新制令单状态
+        //        productionOrder.Status = ProductionOrderStatus.已暂停;
+        //        productionOrderRepository.UpdateEntity(productionOrder, new Expression<Func<ProductionOrder, object>>[] { src => src.Status });
+        //        bool saved = await fgmsDbContext.SaveChangesAsync() >= 2;
+        //        if (!saved)
         //        {
-        //            case ProductionOrderStatus.已排配:
-        //                poModel.Status = ProductionOrderStatus.待发料;
-        //                mioEntity.Type = MioType.发料;
-        //                mioEntity.Quantity = poModel.Quantity;
-        //                //创建砂轮工单
-        //                var wheelOrder = new WorkOrder
-        //                {
-        //                    ProductionOrderId = poModel.Id,
-        //                    OrderNo = $"WO{randomNumber.CreateOrderNum()}",
-        //                    UserInfoId = poModel.UserInfoId,
-        //                    Type = WorkOrderType.砂轮申领,
-        //                    Priority = WorkOrderPriority.低,
-        //                    MaterialNo = poModel.MaterialCode,
-        //                    MaterialSpec = poModel.MaterialSpec,
-        //                    Status = WorkOrderStatus.待审,
-        //                    RequiredDate = DateTime.Now.AddHours(4),
-        //                    Remark = poModel.Remark
-        //                };
-        //                workOrderRepository.AddEntity(wheelOrder);
-        //                bool saved = await fgmsDbContext.SaveChangesAsync() > 0;
-        //                if (!saved)
-        //                {
-        //                    await fgmsDbContext.RollBackTrans();
-        //                    return new { success = false, message = "砂轮工单创建失败" };
-        //                }
-        //                poModel.WorkOrderId = wheelOrder.Id;
-        //                productionOrderRepository.UpdateEntity(poModel, new Expression<Func<ProductionOrder, object>>[] { x => x.WorkOrderId, x => x.Status });
-        //                break;
-        //            case ProductionOrderStatus.已收料:
-        //            case ProductionOrderStatus.生产中:
-        //                mioEntity.Type = MioType.补料;
-        //                mioEntity.Quantity = qty!.Value;
-        //                break;
-        //            default:
-        //                return new { success = false, message = "制令单状态错误，无法操作" };
-        //        }
-        //        materialIssueOrderRepository.AddEntity(mioEntity);
-        //        bool success = await fgmsDbContext.SaveChangesAsync() > 0;
-        //        if (success)
-        //            await fgmsDbContext.CommitTrans();
-        //        else
         //            await fgmsDbContext.RollBackTrans();
-        //        return success ? new { success, message = mioEntity.Type == MioType.发料 ? "已创建砂轮工单与发料单，操作成功" : "已创建补料单，操作成功" } : new { success, message = "操作失败" };
+        //            return new { success = false, message = "机台变更申请创建失败" };
+        //        }
+        //        await fgmsDbContext.CommitTrans();
+        //        return new { success = true, message = "机台变更申请创建成功" };
         //    }
         //    catch (Exception ex)
         //    {
         //        await fgmsDbContext.RollBackTrans();
-        //        throw new Exception("Error:" + ex.Message);
+        //        throw new Exception($"创建机台变更申请出现错误：{ex.Message}");
         //    }
         //}
+
+        public async Task<dynamic> CascadeRemoveAsync(string poNo)
+        {
+            // 1. 加载主实体及关联数据
+            var entity = await productionOrderRepository.GetEntityAsync(
+                expression: op => op.OrderNo.Equals(poNo),
+                include: src => src.Include(x => x.WorkOrder!).ThenInclude(wo => wo.Components).Include(x => x.MaterialIssueOrders!));
+
+            if (entity == null)
+                return new { success = false, message = "未知制令单" };
+
+            var issueOrders = entity.MaterialIssueOrders;
+            var workOrder = entity.WorkOrder;
+
+            await fgmsDbContext.BeginTrans();
+            try
+            {
+                // 2. 删除发料单
+                if (issueOrders?.Any() == true)
+                    materialIssueOrderRepository.DeleteEntity(issueOrders);
+
+                // 3. 回收砂轮组
+                if (workOrder?.Components?.Any() == true)
+                {
+                    foreach (var comp in workOrder.Components)
+                    {
+                        if (comp.CargoSpaceHistory is null)
+                        {
+                            await fgmsDbContext.RollBackTrans();
+                            return new { success = false, message = $"砂轮组 {comp.Code} 未记录仓位信息，无法入库" };
+                        }
+
+                        comp.WorkOrderId = null;
+                        comp.CargoSpaceId = comp.CargoSpaceHistory!.Value;
+                        comp.Status = ElementEntityStatus.在库;
+                        componentRepository.UpdateEntity(comp, new Expression<Func<Component, object>>[] 
+                        { 
+                            src => src.WorkOrderId,
+                            src => src.CargoSpaceId,
+                            src => src.Status
+                        });
+
+                        // 回收砂轮元件
+                        if (comp.ElementEntities != null && comp.ElementEntities.Any())
+                        {
+                            foreach (var elem in comp.ElementEntities)
+                            {
+                                elem.CargoSpaceId = comp.CargoSpaceId;
+                                elem.Status = ElementEntityStatus.在库;
+                                elem.Position = null;
+                                elementEntityRepository.UpdateEntity(elem, new Expression<Func<ElementEntity, object>>[]
+                                {
+                                    src => src.CargoSpaceId,
+                                    src => src.Status,
+                                    src => src.Position
+                                });
+                            }
+                        }
+                    }
+                }
+
+                // 4. 删除砂轮工单
+                if (workOrder != null)
+                    workOrderRepository.DeleteEntity(workOrder);
+
+                // 5. 删除制令单
+                productionOrderRepository.DeleteEntity(entity);
+
+                // 6. 保存变更
+                var saved = await fgmsDbContext.SaveChangesAsync() > 0;
+                if (saved)
+                {
+                    await fgmsDbContext.CommitTrans();
+                    return new { success = true, message = "制令单删除成功" };
+                }
+                else
+                {
+                    await fgmsDbContext.RollBackTrans();
+                    return new { success = false, message = "制令单删除失败" };
+                }
+            }
+            catch (Exception ex)
+            {
+                await fgmsDbContext.RollBackTrans();
+                throw new Exception($"删除制令单出现错误：{ex.Message}", ex);
+            }
+        }
     }
 }

@@ -5,9 +5,11 @@ namespace FGMS.Repositories.Interfaces
 {
     public interface IBaseRepository<T> where T : class, new()
     {
+        Task<bool> ExistsAsync(Expression<Func<T, bool>> expression);
+
         Task<T> GetEntityAsync(Expression<Func<T, bool>> expression, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null);
 
-        Task<IEnumerable<T>> GetListAsync(Expression<Func<T, bool>>? expression = null, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null);
+        Task<IEnumerable<T>> GetListAsync(Expression<Func<T, bool>>? expression = null, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null, bool asNoTracking = true);
 
         IQueryable<T> GetQueryable(Expression<Func<T, bool>>? expression = null, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null);
 

@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="6.0.36" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
@@ -16,6 +17,7 @@
     <ProjectReference Include="..\FGMS.Models\FGMS.Models.csproj" />
     <ProjectReference Include="..\FGMS.Mx.Models\FGMS.Mx.Models.csproj" />
     <ProjectReference Include="..\FGMS.Mx.Repositories\FGMS.Mx.Repositories.csproj" />
+    <ProjectReference Include="..\FGMS.Mx.Services\FGMS.Mx.Services.csproj" />
     <ProjectReference Include="..\FGMS.Repositories\FGMS.Repositories.csproj" />
     <ProjectReference Include="..\FGMS.Utils\FGMS.Utils.csproj" />
   </ItemGroup>

@@ -122,6 +122,10 @@ namespace FGMS.Android.Api.Controllers
             int poid = paramJson.poid;
             int? qty = paramJson.qty;
 
+            bool exists = await materialIssueOrderService.ExistsAsync(src => src.ProductionOrderId == poid && src.Type == Enum.Parse<MioType>(type));
+            if (exists)
+                return BadRequest(new { success = false, message = "发料单已存在，请勿重复申请" });
+
             if (Enum.Parse<MioType>(type) == MioType.补料 && qty == null)
                 return BadRequest(new { success = false, message = "补料数量不能为0" });
 

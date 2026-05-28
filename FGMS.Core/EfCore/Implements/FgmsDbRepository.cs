@@ -9,7 +9,7 @@ namespace FGMS.Core.EfCore.Implements
         public FgmsDbRepository(IFgmsDbContext context)
         {
             FamsDbContext = context ?? throw new ArgumentNullException(nameof(context));
-            Entities = context.Set<T>().AsNoTracking();
+            Entities = context.Set<T>();
         }
 
         public IFgmsDbContext FamsDbContext { get; private set; }

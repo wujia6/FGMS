@@ -70,7 +70,7 @@ namespace FGMS.Android.Api.Controllers
         {
             var expression = ExpressionBuilder.GetTrue<ProductionOrder>()
                 .AndIf(!string.IsNullOrEmpty(equCode), x => x.Equipment!.Code.Equals(equCode))
-                .And(x => x.Status != ProductionOrderStatus.已完成 && x.Report!.Value == false && !x.CompletedTime.HasValue);
+                .And(x => x.Status != ProductionOrderStatus.已完成 && x.Status != ProductionOrderStatus.已暂停 && x.Report!.Value == false && !x.CompletedTime.HasValue);
 
             var query = productionOrderService.GetQueryable(
                 expression,
@@ -106,7 +106,7 @@ namespace FGMS.Android.Api.Controllers
                 return BadRequest(new { success = false, message = "未知发料单" });
 
             var dto = mapper.Map<MaterialIssueOrderDto>(mio);
-            return Ok(new { success = true, data = dto });
+            return Ok(new { success = true, requiredWheel = mio.ProductionOrder!.RequireWheel, data = dto });
         }
 
         /// <summary>
@@ -186,6 +186,30 @@ namespace FGMS.Android.Api.Controllers
             int operatorId = userOnline.Id!.Value;
             return Ok(await materialIssueOrderService.EquipmentReceiveAsync(mioId, operatorId));
         }
+
+        ///// <summary>
+        ///// 机台变更申请
+        ///// </summary>
+        ///// <param name="paramJson">{ 'poid': int, 'newEquId': int, 'oldEquCode': 'string', 'reason': 'string' }</param>
+        ///// <returns></returns>
+        //[HttpPost("equipment-change")]
+        //public async Task<IActionResult> CreateEquipmentChangeAsync([FromBody] dynamic paramJson)
+        //{
+        //    if (paramJson is null || paramJson.poid is null || paramJson.newEquId is null || paramJson.oldEquCode is null || paramJson.reason is null)
+        //        return BadRequest(new { success = false, message = "参数错误" });
+
+        //    int poId = paramJson.poid,
+        //        equId = paramJson.equid,
+        //        userInfoId = userOnline.Id!.Value;
+
+        //    string oldEquCode = paramJson.oldEquCode,
+        //        reason = paramJson.reason;
+            
+        //    var rsult = await productionOrderService.EquipmentChangeAsync(poId, equId, oldEquCode, reason, userInfoId);
+        //    var resultJson = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(rsult));
+        //    bool success = resultJson.success;
+        //    return success ? Ok(new { success, resultJson.message }) : BadRequest(new { success, resultJson.message });
+        //}
 
         /// <summary>
         /// 开工

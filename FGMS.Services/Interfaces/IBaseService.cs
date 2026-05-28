@@ -21,6 +21,8 @@ namespace FGMS.Services.Interfaces
 
         Task<List<T>> ListAsync(Expression<Func<T, bool>>? expression = null, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null);
 
+        Task<bool> ExistsAsync(Expression<Func<T, bool>> expression);
+
         IQueryable<T> GetQueryable(Expression<Func<T, bool>>? expression = null, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null);
     }
 }

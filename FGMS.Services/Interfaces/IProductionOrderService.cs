@@ -6,6 +6,8 @@ namespace FGMS.Services.Interfaces
     {
         public Task<dynamic> MadeBeginAsync(int poid);
 
-        //public Task<dynamic> EquipmentChangeAsync(int poId, int newEquId, string reason, int userInfoId);
+        //public Task<dynamic> EquipmentChangeAsync(int poId, int equId, string oldEquCode, string reason, int userInfoId);
+
+        public Task<dynamic> CascadeRemoveAsync(string poNo);
     }
 }

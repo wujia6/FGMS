@@ -76,7 +76,9 @@ namespace FGMS.Services.Implements
                         {
                             if (!cmp.CargoSpaceHistory.HasValue)
                             {
-                                return cmp.IsStandard ? new { success = false, message = $"标组：{cmp.Code} 未找到相关货位，入库失败" } : new { success = false, message = $"非标组未找到相关货位，入库失败" };
+                                return cmp.IsStandard ? 
+                                    new { success = false, message = $"标组：{cmp.Code} 未找到相关货位，入库失败" } : 
+                                    new { success = false, message = $"非标组未找到相关货位，入库失败" };
                             }
                             cmp.CargoSpaceId = cmp.CargoSpaceHistory.Value;
                             cmp.WorkOrderId = null;
@@ -508,7 +510,6 @@ namespace FGMS.Services.Implements
                 ee.Status = ElementEntityStatus.上机;
                 ee.BeginTime = DateTime.Now;
                 ee.Remark = null;
-                ee.Component = null;
                 logs.Add(new TrackLog
                 {
                     Content = $"工件：{ee.MaterialNo}已上机，机台：{workOrder.ProductionOrder!.Equipment!.Code}，时间：{ee.BeginTime.Value}",
@@ -521,13 +522,15 @@ namespace FGMS.Services.Implements
             await fgmsDbContext!.BeginTrans();
             try
             {
-                bool updateSuccess =
-                    elementEntityRepository!.UpdateEntity(ees, new Expression<Func<ElementEntity, object>>[] { src => src.Status, src => src.BeginTime, src => src.Remark }) &&
-                    equipmentRepository!.UpdateEntity(equipment, new Expression<Func<Equipment, object>>[] { src => src.Mount }) &&
-                    productionOrderRepository!.UpdateEntity(productionOrder, new Expression<Func<ProductionOrder, object>>[] { src => src.Status });
+                bool updateSuccess1 = elementEntityRepository!.UpdateEntity(ees, new Expression<Func<ElementEntity, object>>[] { src => src.Status, src => src.BeginTime, src => src.Remark });
+                bool updateSuccess2 = equipmentRepository!.UpdateEntity(equipment, new Expression<Func<Equipment, object>>[] { src => src.Mount });
+                bool updateSuccess3 = productionOrderRepository!.UpdateEntity(productionOrder, new Expression<Func<ProductionOrder, object>>[] { src => src.Status });
 
-                if (!updateSuccess)
+                if (!updateSuccess1 || !updateSuccess2 || !updateSuccess3)
+                {
+                    await fgmsDbContext.RollBackTrans();
                     return new { success = false, message = "实体更新失败" };
+                }
 
                 var addList = RecordComponentLogs(workOrder);
 
@@ -778,26 +781,17 @@ namespace FGMS.Services.Implements
                     if (com.CargoSpaceHistory is null)
                         return new { success = false, message = $"砂轮组 {com.Code} 未记录仓位信息，无法入库" };
 
+                    com.WorkOrderId = null;
+                    com.Status = ElementEntityStatus.在库;
+                    com.CargoSpaceId = com.CargoSpaceHistory.Value;
+                    componentRepository!.UpdateEntity(com, new Expression<Func<Component, object>>[] { src => src.Status, src => src.WorkOrderId, src => src.CargoSpaceId });
+
                     foreach (var ee in com.ElementEntities!)
                     {
-                        if (ee.CargoSpaceHistory is null)
-                            return new { success = false, message = $"砂轮 {ee.Code} 未记录仓位信息，无法入库" };
-
-                        if (ee.Status != ElementEntityStatus.在库)
-                        {
-                            ee.Status = ElementEntityStatus.在库;
-                            ee.CargoSpaceId = ee.CargoSpaceHistory.Value;
-                            ee.Position = null;
-                            elementEntityRepository!.UpdateEntity(ee, new Expression<Func<ElementEntity, object>>[] { src => src.Status, src => src.CargoSpaceId, src => src.Position } );
-                        }
-                    }
-
-                    if (com.Status != ElementEntityStatus.在库)
-                    {
-                        com.WorkOrderId = null;
-                        com.Status = ElementEntityStatus.在库;
-                        com.CargoSpaceId = com.CargoSpaceHistory.Value;
-                        componentRepository!.UpdateEntity(com, new Expression<Func<Component, object>>[] { src => src.Status, src => src.WorkOrderId, src => src.CargoSpaceId });
+                        ee.Status = ElementEntityStatus.在库;
+                        ee.CargoSpaceId = com.CargoSpaceId;
+                        ee.Position = null;
+                        elementEntityRepository!.UpdateEntity(ee, new Expression<Func<ElementEntity, object>>[] { src => src.Status, src => src.CargoSpaceId, src => src.Position });
                     }
                 }
                 record.Status = WorkOrderStatus.工单结束;
@@ -813,6 +807,72 @@ namespace FGMS.Services.Implements
             {
                 await fgmsDbContext.RollBackTrans();
                 return new { success = false, message = "强制退仓过程中发生错误：" + ex.Message };
+            }
+        }
+
+        // 砂轮工单解绑制令单
+        public async Task<dynamic> UnbindProductionAsync(string orderNo)
+        {
+            // 1. 获取当前制令单及关联的工单
+            var currentProductionOrder = await productionOrderRepository!.GetEntityAsync(expression: src => src.OrderNo.Equals(orderNo), include: src => src.Include(x => x.WorkOrder!));
+
+            if (currentProductionOrder is null || currentProductionOrder.WorkOrder is null)
+                return new { success = false, message = "未知砂轮工单或制令单" };
+
+            var currentWorkOrder = currentProductionOrder!.WorkOrder;
+
+            if (currentWorkOrder.Status != WorkOrderStatus.机台接收)
+                return new { success = true, message = "砂轮工单状态不允许解绑制令单" };
+
+            // 2. 查询设备制令单
+            var equipmentOrders = await productionOrderRepository!.GetListAsync(expression: src => src.EquipmentId == currentProductionOrder.EquipmentId, asNoTracking: false);
+
+            // 3. 检查是否有后续制令单
+            var orderedOrders = equipmentOrders.OrderBy(src => src.Id).ToList();
+            var currentIndex = orderedOrders.FindIndex(po => po.Id == currentProductionOrder.Id);
+
+            if (currentIndex == -1)
+                return new { success = false, message = "当前制令单未找到，请检查数据完整性" };
+
+            if (currentIndex == orderedOrders.Count - 1)
+                return new { success = true, message = "无后续制令单，无需解绑" };
+
+            var nextProductionOrder = orderedOrders[currentIndex + 1];
+
+            // 4. 检查换款物料
+            if (nextProductionOrder.RequireWheel)
+                return new { success = true, message = "下个制令单为换款物料，无需解绑" };
+
+            // 5. 执行解绑和绑定操作
+            currentProductionOrder.WorkOrderId = null;
+            nextProductionOrder.WorkOrderId = currentWorkOrder.Id;
+            currentWorkOrder.ProductionOrderId = nextProductionOrder.Id;
+
+            // 6. 事务更新
+            await fgmsDbContext!.BeginTrans();
+            try
+            {
+                productionOrderRepository.UpdateEntity(currentProductionOrder, new Expression<Func<ProductionOrder, object>>[] { src => src.WorkOrderId });
+                productionOrderRepository.UpdateEntity(nextProductionOrder, new Expression<Func<ProductionOrder, object>>[] { src => src.WorkOrderId });
+                workOrderRepository.UpdateEntity(currentWorkOrder, new Expression<Func<WorkOrder, object>>[] { src => src.ProductionOrderId });
+
+                var saved = await fgmsDbContext.SaveChangesAsync() > 0;
+
+                if (saved)
+                {
+                    await fgmsDbContext.CommitTrans();
+                    return new { success = true, message = "操作成功" };
+                }
+                else
+                {
+                    await fgmsDbContext.RollBackTrans();
+                    return new { success = false, message = "数据保存失败" };
+                }
+            }
+            catch (Exception ex)
+            {
+                await fgmsDbContext!.RollBackTrans();
+                return new { success = false, message = $"解绑过程中发生错误：{ex.Message}" };
             }
         }
     }

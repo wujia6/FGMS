@@ -1,4 +1,5 @@
 ﻿using System.Linq.Expressions;
+using System.Linq.Dynamic.Core;
 using FGMS.Models;
 using FGMS.Models.Dtos;
 using FGMS.Models.Entities;
@@ -64,10 +65,12 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="materialNo">料号</param>
         /// <param name="status">状态</param>
         /// <param name="date">日期</param>
+        /// <param name="field">排序字段</param>
+        /// <param name="rule">排序规则</param>
         /// <returns></returns>
         [HttpGet("list")]
         [PermissionAsync("whell_order_management", "view", "电脑")]
-        public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize, string? type, string? orderNo, string? equipmentCode, string? materialNo, string? status, DateTime? date)
+        public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize, string? type, string? orderNo, string? equipmentCode, string? materialNo, string? status, DateTime? date, string field = "Id", string rule = "desc" )
         {
             var expression = ExpressionBuilder.GetTrue<WorkOrder>()
                 .AndIf(!string.IsNullOrEmpty(type), src => src.Type == Enum.Parse<WorkOrderType>(type!))
@@ -82,8 +85,9 @@ namespace FGMS.PC.Api.Controllers
                     .Include(src => src.Components!).ThenInclude(src => src.ElementEntities!.OrderBy(src => src.Position)).ThenInclude(src => src.Element!)
                     .Include(src => src.Parent!).ThenInclude(src => src.ProductionOrder!.Equipment!)
                     .Include(src => src.UserInfo!))
-                .OrderByDescending(src => src.Priority)
-                .ThenByDescending(src => src.CreateDate)
+                //.OrderByDescending(src => src.Priority)
+                //.ThenByDescending(src => src.Id)
+                .OrderBy(string.Format("{0} {1}", field, rule))
                 .AsNoTracking();
 
             int total = await query.CountAsync();
@@ -223,6 +227,25 @@ namespace FGMS.PC.Api.Controllers
             bool success = jsonResult!.success;
             //string message = jsonResult!.message;
             return success ? Ok(new { success, jsonResult.message }) : BadRequest(new { success, jsonResult.message });
+        }
+
+        /// <summary>
+        /// 解绑制令单
+        /// </summary>
+        /// <param name="paramJson">{ 'orderNo': string }</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        [AllowAnonymous]
+        [HttpPut("unBind")]
+        public async Task<IActionResult> UnBindAsync([FromBody] dynamic paramJson)
+        {
+            if (paramJson is null || paramJson.orderNo is null)
+                throw new ArgumentNullException(nameof(paramJson));
+
+            string orderNo = paramJson.orderNo;
+            var resultJson = await workOrderService.UnbindProductionAsync(orderNo);
+            bool successed = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(resultJson)).success;
+            return successed ? Ok(resultJson) : BadRequest(resultJson);
         }
     }
 }

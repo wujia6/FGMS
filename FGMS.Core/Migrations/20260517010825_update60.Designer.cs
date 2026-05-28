@@ -4,6 +4,7 @@ using FGMS.Core.EfCore.Implements;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FGMS.Core.Migrations
 {
     [DbContext(typeof(FgmsDbContext))]
-    partial class FgmsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260517010825_update60")]
+    partial class update60
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -818,12 +820,12 @@ namespace FGMS.Core.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("getdate()");
 
-                    b.Property<string>("Operator")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                    b.Property<int>("OperatorId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OperatorId");
 
                     b.ToTable("ProductionOrderLogs");
                 });
@@ -1276,6 +1278,17 @@ namespace FGMS.Core.Migrations
                     b.Navigation("Equipment");
 
                     b.Navigation("UserInfo");
+                });
+
+            modelBuilder.Entity("FGMS.Models.Entities.ProductionOrderLog", b =>
+                {
+                    b.HasOne("FGMS.Models.Entities.UserInfo", "Operator")
+                        .WithMany()
+                        .HasForeignKey("OperatorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Operator");
                 });
 
             modelBuilder.Entity("FGMS.Models.Entities.RoleInfo", b =>

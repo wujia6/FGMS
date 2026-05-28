@@ -155,21 +155,14 @@ namespace FGMS.Android.Api.Controllers
             bool success = false;
             int orderId = paramJson!.id;
             var orderEntity = await workOrderService.ModelAsync(
-                expression: src => src.Id == orderId, 
-                include: src => src
-                    .Include(src => src.Parent!)
-                    .Include(src => src.Components!).ThenInclude(src => src.ElementEntities!)
-                    .Include(src => src.ProductionOrder!).ThenInclude(src => src.Equipment!));
+                expression: src => src.Id == orderId,
+                include: src => src.Include(src => src.Parent!).Include(src => src.Components!).ThenInclude(src => src.ElementEntities!).Include(src => src.ProductionOrder!).ThenInclude(src => src.Equipment!));
 
             if (orderEntity.Type == WorkOrderType.砂轮返修 && orderEntity.Parent != null)
             {
                 var parent = orderEntity.Parent;
                 var cmps = orderEntity.Components!.ToList();
-                cmps.ForEach(cmp =>
-                {
-                    cmp.WorkOrder = null;
-                    cmp.WorkOrderId = parent.Id;
-                });
+                cmps.ForEach(cmp => cmp.WorkOrderId = parent.Id);
                 success = await componentService.UpdateAsync(cmps, new Expression<Func<Component, object>>[] { src => src.WorkOrderId! });
                 if (success)
                 {
@@ -183,8 +176,6 @@ namespace FGMS.Android.Api.Controllers
                     return new { success = false, message = "未关联制令单，无法接收" };
 
                 var cmps = orderEntity.Components;
-                orderEntity.Components = null;
-                //orderEntity.Equipment = null;
                 orderEntity.Status = WorkOrderStatus.机台接收;
                 success = await workOrderService.UpdateAsync(orderEntity, new Expression<Func<WorkOrder, object>>[] { src => src.Status });
                 if (success)
@@ -273,17 +264,11 @@ namespace FGMS.Android.Api.Controllers
                 ee.Remark = eeList.FirstOrDefault(src => src.id == ee.Id)!.remark;
                 if (!cmps.Any(src => src.Id == ee.ComponentId!.Value))
                     cmps.Add(ee.Component!);
-                ee.Component = null;
             }
             success = await elementEntityService.UpdateAsync(ees!, new Expression<Func<ElementEntity, object>>[] { src => src.Status, src => src.Remark! });
 
             //工件组绑定返修单
-            cmps.ForEach(x =>
-            {
-                x.WorkOrderId = bxOrder.Id;
-                x.ElementEntities = null;
-                x.WorkOrder = null;
-            });
+            cmps.ForEach(x => x.WorkOrderId = bxOrder.Id);
             success = await componentService.UpdateAsync(cmps, new Expression<Func<Component, object>>[] { src => src.WorkOrderId! });
 
             //添加日志

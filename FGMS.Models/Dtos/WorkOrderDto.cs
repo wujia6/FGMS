@@ -26,6 +26,7 @@
         public string? Reason { get; set; }
         public string? RenovateorName { get; set; }
         public string? RepairEquipmentCode { get; set; }
+        //public List<ProductionOrderDto>? ProductionOrderDtos { get; set; }
         public List<WorkOrderDto>? ChildrenDtos { get; set; }
         public List<ComponentDto>? ComponentDtos { get; set; }
         public List<StandardDto>? StandardDtos { get; set; }

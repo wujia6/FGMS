@@ -1,15 +1,12 @@
-﻿using System.Globalization;
-using System.Linq.Dynamic.Core;
+﻿using System.Linq.Dynamic.Core;
 using FGMS.Models;
 using FGMS.Models.Dtos;
 using FGMS.Models.Entities;
 using FGMS.Mx.Services;
-using FGMS.PC.Api.Filters;
 using FGMS.Services.Interfaces;
 using FGMS.Utils;
 using MapsterMapper;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Routing.Constraints;
 using Microsoft.EntityFrameworkCore;
 
 namespace FGMS.PC.Api.Controllers
@@ -25,7 +22,6 @@ namespace FGMS.PC.Api.Controllers
         private readonly IBrandService brandService;
         private readonly IElementEntityService elementEntityService;
         private readonly IEquipmentService equipmentService;
-        private readonly IEquipmentChangeOrderService equipmentOrderChangeService;
         private readonly IMaterialIssueOrderService materialIssueOrderService;
         private readonly IProductionOrderService productionOrderService;
         private readonly IBusinessService businessService;
@@ -38,7 +34,6 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="brandService"></param>
         /// <param name="elementEntityService"></param>
         /// <param name="equipmentService"></param>
-        /// <param name="equipmentOrderChangeService"></param>
         /// <param name="materialIssueOrderService"></param>
         /// <param name="productionOrderService"></param>
         /// <param name="businessService"></param>
@@ -48,7 +43,6 @@ namespace FGMS.PC.Api.Controllers
             IBrandService brandService,
             IElementEntityService elementEntityService,
             IEquipmentService equipmentService,
-            IEquipmentChangeOrderService equipmentOrderChangeService,
             IMaterialIssueOrderService materialIssueOrderService,
             IProductionOrderService productionOrderService,
             IBusinessService businessService,
@@ -58,7 +52,6 @@ namespace FGMS.PC.Api.Controllers
             this.brandService = brandService;
             this.elementEntityService = elementEntityService;
             this.equipmentService = equipmentService;
-            this.equipmentOrderChangeService = equipmentOrderChangeService;
             this.materialIssueOrderService = materialIssueOrderService;
             this.productionOrderService = productionOrderService;
             this.businessService = businessService;
@@ -158,20 +151,6 @@ namespace FGMS.PC.Api.Controllers
             return new { rows = mapper.Map<List<WorkOrderDto>>(orderEntities) };
         }
 
-        /// <summary>
-        /// 获取未审核机台变更单
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet("equipmentChangeByNotAudit")]
-        public async Task<IActionResult> EquipmentChangeByNotAuditAsync()
-        {
-            var query = equipmentOrderChangeService.GetQueryable(src => src.Status == WorkOrderStatus.待审)
-                .OrderByDescending(src => src.Id)
-                .AsNoTracking();
-            var entities = await query.ToListAsync();
-            return Ok(mapper.Map<List<EquipmentChangeOrderDto>>(entities));
-        }
-
         //===============================发料看板===============================//
 
         /// <summary>
@@ -206,7 +185,7 @@ namespace FGMS.PC.Api.Controllers
         [HttpGet("productionBoard")]
         public async Task<IActionResult> ProductionBoardAsync()
         {
-            var query = productionOrderService.GetQueryable(expression: src => src.Status != ProductionOrderStatus.已暂停 && src.Status != ProductionOrderStatus.机台变更)
+            var query = productionOrderService.GetQueryable(expression: src => src.Status != ProductionOrderStatus.已暂停)
                 .OrderByDescending(src => src.Id)
                 .AsNoTracking();
 
@@ -264,7 +243,7 @@ namespace FGMS.PC.Api.Controllers
         [HttpGet("productionOrders")]
         public async Task<IActionResult> ProductionOrdersAsync(string areaCode = "A")
         {
-            var query = productionOrderService.GetQueryable(expression: src => src.Status != ProductionOrderStatus.已暂停 && src.Status != ProductionOrderStatus.机台变更 && src.Equipment!.Organize!.Code.Contains(areaCode))
+            var query = productionOrderService.GetQueryable(expression: src => src.Status != ProductionOrderStatus.已暂停 && src.Equipment!.Organize!.Code.Contains(areaCode))
                 .Include(src => src.Equipment!).ThenInclude(src => src.Organize!)
                 .Include(src => src.MaterialIssueOrders)
                 .Include(src => src.WorkOrder)
@@ -290,15 +269,16 @@ namespace FGMS.PC.Api.Controllers
         [HttpGet("availableProductionOrders")]
         public async Task<IActionResult> AvailableProductionOrdersAsync()
         {
-            var query = productionOrderService.GetQueryable(expression: src => !src.IsDc!.Value && (src.Status == ProductionOrderStatus.已排配 || src.Status == ProductionOrderStatus.待发料 || src.Status == ProductionOrderStatus.已收料 || src.Status == ProductionOrderStatus.生产中))
+            var query = productionOrderService.GetQueryable(
+                expression: src => !src.IsDc!.Value && !src.Report!.Value && (src.Status != ProductionOrderStatus.已暂停))
                 .Include(src => src.Equipment!).ThenInclude(src => src.Organize!)
                 .AsNoTracking();
 
-            var allEntities = await query.ToListAsync();
+            var polist = await query.ToListAsync();
             var availables = new List<ProductionOrder>();
 
             // 按设备分组处理
-            var equipmentGroups = allEntities.GroupBy(src => src.EquipmentId);
+            var equipmentGroups = polist.GroupBy(src => src.EquipmentId);
 
             foreach (var group in equipmentGroups)
             {
