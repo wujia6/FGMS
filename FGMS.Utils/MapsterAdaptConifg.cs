@@ -95,13 +95,13 @@ namespace FGMS.Utils
                 .IgnoreNullValues(true);
 
             config.ForType<ProductionOrder, ProductionOrderDto>()
-                .Map(dest => dest.UserInfoName, src => src.UserInfo!.Name)
-                .Map(dest => dest.EquipmentCode, src => src.Equipment!.Code)
-                .Map(dest => dest.OrganizeCode, src => src.Equipment!.Organize!.Code)
+                .Map(dest => dest.UserInfoName, src => src.UserInfo != null ? src.UserInfo!.Name : string.Empty)
+                .Map(dest => dest.EquipmentCode, src => src.Equipment != null ? src.Equipment!.Code : string.Empty)
+                .Map(dest => dest.OrganizeCode, src => src.Equipment != null && src.Equipment!.Organize != null ? src.Equipment!.Organize!.Code : string.Empty)
                 .Map(dest => dest.WorkOrderNo, src => src.WorkOrder != null ? src.WorkOrder!.OrderNo : string.Empty)
                 .Map(dest => dest.Status, src => Enum.GetName(typeof(ProductionOrderStatus), src.Status))
-                .Map(dest => dest.MaterialIssueOrderDtos, src => src.MaterialIssueOrders)
-                .Map(dest => dest.WorkOrderDto, src => src.WorkOrder)
+                .Map(dest => dest.MaterialIssueOrderDtos, src => src.MaterialIssueOrders ?? null)
+                .Map(dest => dest.WorkOrderDto, src => src.WorkOrder ?? null)
                 .IgnoreNullValues(true);
 
             config.ForType<ProductionOrderLog, ProductionOrderLogDto>().IgnoreNullValues(true);
@@ -117,19 +117,20 @@ namespace FGMS.Utils
                 .IgnoreNullValues(true);
 
             config.ForType<WorkOrder, WorkOrderDto>()
-                .Map(dest => dest.ParentNo, src => src.Parent!.OrderNo)
-                .Map(dest => dest.EquipmentId, src => src.ProductionOrder!.EquipmentId)
-                .Map(dest => dest.EquipmentCode, src => src.ProductionOrder!.Equipment!.Code)
-                .Map(dest => dest.OrganizeCode, src => src.ProductionOrder!.Equipment!.Organize!.Code)
-                .Map(dest => dest.ProductionOrderNo, src => src.ProductionOrder != null ? src.ProductionOrder!.OrderNo : string.Empty)
-                .Map(dest => dest.UserInfoName, src => src.UserInfo!.Name)
+                .Map(dest => dest.ParentNo, src => src.Parent != null ? src.Parent!.OrderNo : string.Empty)
+                .Map(dest => dest.EquipmentId, src => src.ProductionOrders != null && src.ProductionOrders!.Any() ? src.ProductionOrders!.FirstOrDefault()!.EquipmentId : (int?)null)
+                .Map(dest => dest.EquipmentCode, src => src.ProductionOrders != null && src.ProductionOrders!.Any() ? src.ProductionOrders!.FirstOrDefault()!.Equipment!.Code : string.Empty)
+                .Map(dest => dest.OrganizeCode, src => src.ProductionOrders != null && src.ProductionOrders!.Any() ? src.ProductionOrders!.FirstOrDefault()!.Equipment!.Organize!.Code : string.Empty)
+                .Map(dest => dest.ProductionOrderId, src => src.ProductionOrders != null && src.ProductionOrders!.Any() ? src.ProductionOrders!.FirstOrDefault()!.Id : (int?)null)
+                .Map(dest => dest.ProductionOrderNo, src => src.ProductionOrders != null && src.ProductionOrders!.Any() ? src.ProductionOrders!.FirstOrDefault()!.OrderNo : string.Empty)
+                .Map(dest => dest.UserInfoName, src => src.UserInfo != null ? src.UserInfo!.Name : string.Empty)
                 .Map(dest => dest.Type, src => Enum.GetName(typeof(WorkOrderType), src.Type))
                 .Map(dest => dest.Priority, src => Enum.GetName(typeof(WorkOrderPriority), src.Priority))
                 .Map(dest => dest.Status, src => Enum.GetName(typeof(WorkOrderStatus), src.Status))
                 .Map(dest => dest.RenovateorName, src => src.Renovateor != null ? src.Renovateor.Name : string.Empty)
-                .Map(dest => dest.StandardDtos, src => src.WorkOrderStandards != null? src.WorkOrderStandards!.Select(s => s.Standard) : null)
-                .Map(dest => dest.ComponentDtos, src => src.Components)
-                .Map(dest => dest.ChildrenDtos, src => src.Childrens)
+                .Map(dest => dest.StandardDtos, src => src.WorkOrderStandards != null && src.WorkOrderStandards!.Any() ? src.WorkOrderStandards!.Select(s => s.Standard) : null)
+                .Map(dest => dest.ComponentDtos, src => src.Components ?? null)
+                .Map(dest => dest.ChildrenDtos, src => src.Childrens ?? null)
                 .IgnoreNullValues(true);
 
             config.ForType<TrackLog, TrackLogDto>().IgnoreNullValues(true);

@@ -104,12 +104,13 @@ namespace FGMS.PC.Api.Controllers
         [HttpGet("order")]
         public async Task<dynamic> OrderAsync(string? type, string? status, int count = 20)
         {
-            var expression = ExpressionBuilder.GetTrue<WorkOrder>();
-            if (!string.IsNullOrEmpty(type))
-                expression = expression.And(src => src.Type == (WorkOrderType)Enum.Parse(typeof(WorkOrderType), type));
-            if (!string.IsNullOrEmpty(status))
-                expression = expression.And(src => src.Status == (WorkOrderStatus)Enum.Parse(typeof(WorkOrderStatus), status));
-            var entities = await workOrderService.ListAsync(expression, include: src => src.Include(src => src.UserInfo!).Include(src => src.ProductionOrder!.Equipment!));
+            var expression = ExpressionBuilder.GetTrue<WorkOrder>()
+                .AndIf(!string.IsNullOrEmpty(type), src => src.Type == Enum.Parse<WorkOrderType>(type!))
+                .AndIf(!string.IsNullOrEmpty(status), src => src.Status == Enum.Parse<WorkOrderStatus>(status!));
+
+            var entities = await workOrderService.ListAsync(
+                expression, 
+                include: src => src.Include(src => src.UserInfo!).Include(src => src.ProductionOrders!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize!));
             entities = entities.OrderByDescending(src => src.Priority).ThenByDescending(src => src.RequiredDate).Take(count).ToList();
             return new { rows = mapper.Map<List<WorkOrderDto>>(entities) };
         }
@@ -122,15 +123,20 @@ namespace FGMS.PC.Api.Controllers
         public async Task<dynamic> OrderInAuditAsync()
         {
             var orderEntities = (await workOrderService.ListAsync(
-                expression: src =>
-                        src.Status != WorkOrderStatus.工单结束 &&
-                        (src.Status == WorkOrderStatus.待审 || src.Status == WorkOrderStatus.审核通过 ||
-                        src.Status == WorkOrderStatus.砂轮整备 || src.Status == WorkOrderStatus.参数修整 ||
-                        src.Status == WorkOrderStatus.整备完成 || src.Type == WorkOrderType.砂轮退仓 || src.Type == WorkOrderType.砂轮返修),
-                    include: src => src.Include(src => src.UserInfo!).Include(src => src.ProductionOrder!.Equipment!)))
+                    expression: src =>
+                        src.Status != WorkOrderStatus.工单结束 && (
+                        src.Status == WorkOrderStatus.待审 || 
+                        src.Status == WorkOrderStatus.审核通过 ||
+                        src.Status == WorkOrderStatus.砂轮整备 || 
+                        src.Status == WorkOrderStatus.参数修整 ||
+                        src.Status == WorkOrderStatus.整备完成 || 
+                        src.Type == WorkOrderType.砂轮退仓 || 
+                        src.Type == WorkOrderType.砂轮返修),
+                    include: src => src.Include(src => src.UserInfo!).Include(src => src.ProductionOrders!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize!)))
                 .OrderByDescending(src => src.Priority)
                 .ThenByDescending(src => src.RequiredDate)
                 .ToList();
+
             return new { rows = mapper.Map<List<WorkOrderDto>>(orderEntities) };
         }
 
@@ -142,11 +148,16 @@ namespace FGMS.PC.Api.Controllers
         public async Task<dynamic> OrderNotInAuditAsync()
         {
             var orderEntities = await workOrderService.ListAsync(
-                expression: src => src.Status != WorkOrderStatus.审核通过 && src.Status != WorkOrderStatus.砂轮整备 &&
-                                src.Status != WorkOrderStatus.参数修整 && src.Status != WorkOrderStatus.整备完成 &&
-                                src.Status != WorkOrderStatus.待审 && src.Status != WorkOrderStatus.工单结束 &&
-                                src.Status != WorkOrderStatus.驳回 && src.Type == WorkOrderType.砂轮申领,
-                include: src => src.Include(src => src.UserInfo!).Include(src => src.ProductionOrder!.Equipment!));
+                expression: src =>
+                    src.Status != WorkOrderStatus.审核通过 &&
+                    src.Status != WorkOrderStatus.砂轮整备 &&
+                    src.Status != WorkOrderStatus.参数修整 &&
+                    src.Status != WorkOrderStatus.整备完成 &&
+                    src.Status != WorkOrderStatus.待审 &&
+                    src.Status != WorkOrderStatus.工单结束 &&
+                    src.Status != WorkOrderStatus.驳回 &&
+                    src.Type == WorkOrderType.砂轮申领,
+                include: src => src.Include(src => src.UserInfo!).Include(src => src.ProductionOrders!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize!));
             orderEntities = orderEntities.OrderByDescending(src => src.CreateDate).ThenByDescending(src => src.Priority).ToList();
             return new { rows = mapper.Map<List<WorkOrderDto>>(orderEntities) };
         }

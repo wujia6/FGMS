@@ -83,7 +83,7 @@ namespace FGMS.Services.Implements
         private async Task DoWorkAsync(CancellationToken cancellationToken)
         {
             var startTime = DateTime.Now;
-            logger.LogInformation("[{time}] 开始执行定时任务", startTime);
+            logger.LogInformation("============================开始执行定时任务============================");
 
             using var scope = serviceScopeFactory.CreateScope();
             var productionOrderRepository = scope.ServiceProvider.GetRequiredService<IProductionOrderRepository>();
@@ -93,15 +93,11 @@ namespace FGMS.Services.Implements
 
             try
             {
-                #region 处理可用制令单
+                #region 1.处理可用制令单
                 await dbContext.BeginTrans();
                 // 查询所有已排配未报工的制令单
-                //var productOrders = await productionOrderRepository.GetListAsync(
-                //    expression: src => !src.Report!.Value && src.Status != ProductionOrderStatus.已完成 && src.Status != ProductionOrderStatus.已暂停,
-                //    include: src => src.Include(src => src.Equipment!).Include(src => src.WorkOrder!),
-                //    asNoTracking: false);
                 var productOrders = await productionOrderRepository.GetListAsync(
-                    expression: src => src.Status != ProductionOrderStatus.已暂停,
+                    expression: src => src.Status != ProductionOrderStatus.已暂停 && src.Status != ProductionOrderStatus.已完成,
                     include: src => src.Include(src => src.Equipment!).Include(src => src.WorkOrder!),
                     asNoTracking: false);
 
@@ -118,14 +114,13 @@ namespace FGMS.Services.Implements
                 if (!availableOrders.Any() || !availableOrders.Where(src => !src.IsDc!.Value).Any())
                 {
                     logger.LogInformation("没有可处理的制令单");
-                    await dbContext.RollBackTrans();
                     return;
                 }
 
-                logger.LogInformation("发现 {count} 个可处理的制令单", availableOrders.Count);
+                logger.LogInformation("发现 {count} 条可叫料制令单", availableOrders.Count);
                 #endregion
 
-                #region 创建物料发料单
+                #region 2.创建物料发料单
                 // 如重试列表中有数据，合并到本次处理的订单中，避免漏单
                 availableOrders = MergeRetryOrders(availableOrders).Where(src => !src.IsDc!.Value).ToList();
                 var materialIssueOrders = CreateMaterialIssueOrdersAsync(availableOrders, scope);
@@ -135,70 +130,63 @@ namespace FGMS.Services.Implements
                 bool is_successed = materialIssueOrderRepository.AddEntity(materialIssueOrders);
                 if (!is_successed)
                 {
-                    logger.LogWarning("创建物料发料单失败，执行回滚");
-                    await dbContext.RollBackTrans();
+                    logger.LogWarning("创建物料发料单失败");
                     return;
                 }
 
                 availableOrders.ForEach(src => src.Status = ProductionOrderStatus.待发料);
                 bool success = productionOrderRepository.UpdateEntity(availableOrders, new Expression<Func<ProductionOrder, object>>[] { src => src.Status });
-                int saveCount = await dbContext.SaveChangesAsync();
-                if (!success || saveCount == 0)
+                int productionSaveCount = await dbContext.SaveChangesAsync();
+                if (!success || productionSaveCount == 0)
                 {
-                    logger.LogWarning("更新制令单状态失败，执行回滚");
-                    await dbContext.RollBackTrans();
+                    logger.LogWarning("更新制令单状态失败");
                     return;
                 }
+                logger.LogInformation("创建 {count} 条发料单，更新 {orderCount} 条制令单状态为'待发料'", materialIssueOrders.Count, availableOrders.Count);
                 #endregion
 
-                #region 创建砂轮工单
+                #region 3.创建砂轮工单
+                // 更新待发料的制令单状态，并确定哪些需要申请砂轮
+                productOrders.Where(src => availableOrders.Any(dest => dest.Id == src.Id)).ToList().ForEach(src => src.Status = ProductionOrderStatus.待发料);
+                equipmentGroups = productOrders.GroupBy(src => src.EquipmentId);
                 var processProductionOrders = DetermineOrdersRequiringWheel(equipmentGroups);
                 if (processProductionOrders.Any())
                 {
                     // 添加砂轮工单
-                    var requireAdds = processProductionOrders.Where(src => src.RequireWheel == true).ToList();
-                    if (requireAdds.Any())
+                    var result = GetRequireAddWheelOrders(processProductionOrders);
+                    var addWorkOrders = result.workOrders;
+                    var dict = result.dict;
+
+                    var successed = wheelWorkOrderRepository.AddEntity(addWorkOrders);
+                    var whellSaveCount = await dbContext.SaveChangesAsync();
+                    if (!successed || whellSaveCount <= 0)
                     {
-                        var wheelOrderAdds = GetRequireAddWheelOrders(requireAdds);
-                        var successed = wheelWorkOrderRepository.AddEntity(wheelOrderAdds) && await dbContext.SaveChangesAsync() > 0;
-                        if (!successed)
-                        {
-                            logger.LogWarning("创建砂轮工单失败，执行回滚");
-                            await dbContext.RollBackTrans();
-                            return;
-                        }
-                        requireAdds.ForEach(src => src.WorkOrderId = wheelOrderAdds.FirstOrDefault(wo => wo.ProductionOrderId == src.Id)?.Id);
-                        successed = productionOrderRepository.UpdateEntity(requireAdds, new Expression<Func<ProductionOrder, object>>[] { src => src.WorkOrderId, src => src.RequireWheel });
-                        if (!successed)
-                        {
-                            logger.LogWarning("更新制令单砂轮信息失败，执行回滚");
-                            await dbContext.RollBackTrans();
-                            return;
-                        }
+                        logger.LogWarning("创建砂轮工单失败，或无砂轮工单被保存");
+                        return;
+                    }
+
+                    // 更新制令单关联的砂轮工单Id
+                    processProductionOrders.ForEach(src => src.WorkOrderId = addWorkOrders.FirstOrDefault(dest => dest.OrderNo.Equals(dict.GetValueOrDefault(src.OrderNo)))!.Id);
+                    bool updateWheelResult = productionOrderRepository.UpdateEntity(processProductionOrders, new Expression<Func<ProductionOrder, object>>[] { src => src.WorkOrderId });
+                    int updateWheelCount = await dbContext.SaveChangesAsync();
+                    if (!updateWheelResult || updateWheelCount == 0)
+                    {
+                        logger.LogWarning("更新制令单的砂轮工单关联失败");
+                        return;
                     }
                 }
                 #endregion
 
-                #region 保存更改
-                var savedCount = await dbContext.SaveChangesAsync();
-                if (saveCount > 0 || savedCount > 0)
-                {
-                    await dbContext.CommitTrans();
-                    var endTime = DateTime.Now;
-                    var duration = endTime - startTime;
-                    logger.LogInformation(
-                        "[{time}] 定时任务执行完成，处理 {orderCount} 个叫料申请与 {wheelCount} 个砂轮申请，保存 {savedCount} 条记录，耗时: {duration:0}ms",
-                        endTime,
-                        availableOrders.Count,
-                        processProductionOrders.Where(src => src.RequireWheel == true).Count(),
-                        savedCount,
-                        duration.TotalMilliseconds);
-                }
-                else
-                {
-                    logger.LogWarning("没有数据被保存");
-                    await dbContext.RollBackTrans();
-                }
+                #region 4.提交更改
+                await dbContext.CommitTrans();
+
+                string loggerInfomation = $"创建砂轮工单 {processProductionOrders.Count} 条";
+                if (processProductionOrders.Any(src => src.IsDc.GetValueOrDefault()))
+                    loggerInfomation += $"，其中段差制令单的砂轮工单 {processProductionOrders.Count(src => src.IsDc.GetValueOrDefault())} 条";
+
+                logger.LogInformation(loggerInfomation);
+                var duration = DateTime.Now - startTime;
+                logger.LogInformation("定时任务执行完成，耗时: {duration:0}ms", duration.TotalMilliseconds);
                 #endregion
             }
             catch (OperationCanceledException)
@@ -341,14 +329,25 @@ namespace FGMS.Services.Implements
 
                 // 当前设备所有正在生产的料号（非段差）
                 var existingFinishCodes = allOrders
-                    .Where(order => ((order.Status != ProductionOrderStatus.已排配 && order.Status != ProductionOrderStatus.已暂停 && order.Status != ProductionOrderStatus.已完成) || 
-                                    (order.Status == ProductionOrderStatus.已完成 && order.WorkOrder != null && order.WorkOrder.Status == WorkOrderStatus.机台接收)) && 
-                                    order.RequireWheel && !order.IsDc.GetValueOrDefault())
+                    .Where(order => !order.IsDc.GetValueOrDefault() && order.RequireWheel)
+                    .Where(order => order.Status == ProductionOrderStatus.待发料 ||
+                        order.Status == ProductionOrderStatus.已收料 ||
+                        order.Status == ProductionOrderStatus.生产中 ||
+                        order.Status == ProductionOrderStatus.已完成)
+                    .Where(order => order.WorkOrder != null && (
+                        order.WorkOrder!.Status == WorkOrderStatus.待审 ||
+                        order.WorkOrder!.Status == WorkOrderStatus.审核通过 ||
+                        order.WorkOrder!.Status == WorkOrderStatus.砂轮整备 ||
+                        order.WorkOrder!.Status == WorkOrderStatus.参数修整 ||
+                        order.WorkOrder!.Status == WorkOrderStatus.整备完成 ||
+                        order.WorkOrder!.Status == WorkOrderStatus.AGV收料 ||
+                        order.WorkOrder!.Status == WorkOrderStatus.工单配送 ||
+                        order.WorkOrder!.Status == WorkOrderStatus.机台接收))
                     .Select(order => order.FinishCode)
                     .ToHashSet();
 
                 // 处理待发料且未处理砂轮申请的制令单
-                var waitingOrders = allOrders.Where(order => order.Status == ProductionOrderStatus.待发料 && !order.RequireWheel && order.WorkOrder is null && !order.IsDc.GetValueOrDefault()).ToList();
+                var waitingOrders = allOrders.Where(order => order.Status == ProductionOrderStatus.待发料 && !order.RequireWheel && !order.IsDc.GetValueOrDefault()).ToList();
                 foreach (var order in waitingOrders)
                 {
                     // 检查生产列表的成品料号，如当前订单的成品料号不在生产的列表中，则需要申请砂轮
@@ -362,11 +361,20 @@ namespace FGMS.Services.Implements
 
                 // 处理段差制令单
                 var existingFinishDcCodes = allOrders
-                    .Where(order => order.IsDc.GetValueOrDefault() && order.RequireWheel || order.WorkOrder is not null && order.WorkOrder.Status == WorkOrderStatus.机台接收)
+                    .Where(order => order.IsDc.GetValueOrDefault() && order.RequireWheel)
+                    .Where(order => order.WorkOrder != null && (
+                        order.WorkOrder!.Status == WorkOrderStatus.待审 ||
+                        order.WorkOrder!.Status == WorkOrderStatus.审核通过 ||
+                        order.WorkOrder!.Status == WorkOrderStatus.砂轮整备 ||
+                        order.WorkOrder!.Status == WorkOrderStatus.参数修整 ||
+                        order.WorkOrder!.Status == WorkOrderStatus.整备完成 ||
+                        order.WorkOrder!.Status == WorkOrderStatus.AGV收料 ||
+                        order.WorkOrder!.Status == WorkOrderStatus.工单配送 ||
+                        order.WorkOrder!.Status == WorkOrderStatus.机台接收))
                     .Select(order => order.FinishCode)
                     .ToHashSet();
 
-                var waitingDcOrders = allOrders.Where(order => order.IsDc.GetValueOrDefault() && !order.RequireWheel && order.WorkOrder is null).ToList();
+                var waitingDcOrders = allOrders.Where(order => order.IsDc.GetValueOrDefault() && !order.RequireWheel).ToList();
                 foreach (var order in waitingDcOrders)
                 {
                     if (!existingFinishDcCodes.Contains(order.FinishCode))
@@ -419,14 +427,14 @@ namespace FGMS.Services.Implements
         }
 
         // 创建砂轮工单
-        private List<WorkOrder> GetRequireAddWheelOrders(List<ProductionOrder> orders)
+        private (List<WorkOrder> workOrders, Dictionary<string, string> dict) GetRequireAddWheelOrders(List<ProductionOrder> orders)
         {
             var wheelWorkOrders = new List<WorkOrder>();
+            var dict = new Dictionary<string, string>();
             foreach (var order in orders)
             {
                 var wheelWorkOrder = new WorkOrder
                 {
-                    ProductionOrderId = order.Id,
                     UserInfoId = 1,
                     OrderNo = $"WO{randomNumber.CreateOrderNum()}",
                     Type = WorkOrderType.砂轮申领,
@@ -439,8 +447,9 @@ namespace FGMS.Services.Implements
                     AgvTaskCode = Guid.NewGuid().ToString("N")[..16]
                 };
                 wheelWorkOrders.Add(wheelWorkOrder);
+                dict[order.OrderNo] = wheelWorkOrder.OrderNo;
             }
-            return wheelWorkOrders;
+            return (wheelWorkOrders, dict);
         }
 
         // 将重试列表中的订单合并到本次处理的订单中，避免漏单

@@ -121,7 +121,7 @@ namespace FGMS.PC.Api.Controllers
                 if (equipment.ProductionOrders is not null && equipment.ProductionOrders.Any())
                 {
                     var wos = equipment.ProductionOrders!
-                        .Where(src => src.WorkOrder != null && src.WorkOrder.Status == WorkOrderStatus.机台接收)
+                        .Where(src => src.WorkOrder != null && src.WorkOrder!.Status == WorkOrderStatus.机台接收)
                         .Select(src => src.WorkOrder!);
 
                     if (wos.Any())
@@ -156,10 +156,8 @@ namespace FGMS.PC.Api.Controllers
             var machines = await equipmentService.ListAsync(
                 expression: src => src.Code.Contains(areaCode),
                 include: src => src
-                    .Include(src => src.ProductionOrders!.Where(src => src.Status != ProductionOrderStatus.已排配 && src.Status != ProductionOrderStatus.已完成))
-                        .ThenInclude(src => src.MaterialIssueOrders!)
-                    .Include(src => src.ProductionOrders!)
-                        .ThenInclude(src => src.WorkOrder!));
+                    .Include(src => src.ProductionOrders!.Where(src => src.Status != ProductionOrderStatus.已排配 && src.Status != ProductionOrderStatus.已完成)).ThenInclude(src => src.MaterialIssueOrders!)
+                    .Include(src => src.ProductionOrders!).ThenInclude(src => src.WorkOrder!));
 
             return Ok(machines.Select(machine => new
             {
@@ -183,9 +181,9 @@ namespace FGMS.PC.Api.Controllers
                     }),
                     WorkOrder = po.WorkOrder == null ? null : new
                     {
-                        po.WorkOrder.Id,
-                        po.WorkOrder.OrderNo,
-                        Status = po.WorkOrder.Status.GetDisplayName()
+                        po.WorkOrder!.Id,
+                        po.WorkOrder!.OrderNo,
+                        Status = po.WorkOrder!.Status.GetDisplayName()
                     }
                 })
             }));

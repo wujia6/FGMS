@@ -27,6 +27,7 @@ namespace FGMS.PC.Api.Controllers
         private readonly IComponentService componentService;
         private readonly ICargoSpaceService cargoSpaceService;
         private readonly GenerateRandomNumber randomNumber;
+        private readonly UserOnline userOnline;
         private readonly IMapper mapper;
 
         /// <summary>
@@ -37,6 +38,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="componentService"></param>
         /// <param name="cargoSpaceService"></param>
         /// <param name="randomNumber"></param>
+        /// <param name="userOnline"></param>
         /// <param name="mapper"></param>
         public WorkOrderController(
             IWorkOrderService workOrderService,
@@ -44,6 +46,7 @@ namespace FGMS.PC.Api.Controllers
             IComponentService componentService,
             ICargoSpaceService cargoSpaceService,
             GenerateRandomNumber randomNumber,
+            UserOnline userOnline,
             IMapper mapper)
         {
             this.workOrderService = workOrderService;
@@ -51,6 +54,7 @@ namespace FGMS.PC.Api.Controllers
             this.componentService = componentService;
             this.cargoSpaceService = cargoSpaceService;
             this.randomNumber = randomNumber;
+            this.userOnline = userOnline;
             this.mapper = mapper;
         }
 
@@ -75,15 +79,15 @@ namespace FGMS.PC.Api.Controllers
             var expression = ExpressionBuilder.GetTrue<WorkOrder>()
                 .AndIf(!string.IsNullOrEmpty(type), src => src.Type == Enum.Parse<WorkOrderType>(type!))
                 .AndIf(!string.IsNullOrEmpty(orderNo), src => src.OrderNo.Equals(orderNo!))
-                .AndIf(!string.IsNullOrEmpty(equipmentCode), src => src.ProductionOrder!.Equipment!.Code.Equals(equipmentCode!))
+                .AndIf(!string.IsNullOrEmpty(equipmentCode), src => src.ProductionOrders!.Any(po => po.Equipment!.Code.Equals(equipmentCode!)) || src.PreAllocationEquipmentCode!.Equals(equipmentCode!))
                 .AndIf(!string.IsNullOrEmpty(materialNo), src => src.MaterialNo.Contains(materialNo!))
                 .AndIf(!string.IsNullOrEmpty(status), src => src.Status == Enum.Parse<WorkOrderStatus>(status!))
                 .AndIf(date.HasValue, src => src.CreateDate.Date == date!.Value);
 
             var query = workOrderService.GetQueryable(expression, include: src => src
-                    .Include(src => src.ProductionOrder!).ThenInclude(src => src.Equipment!.Organize)
+                    .Include(src => src.ProductionOrders!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize!)
                     .Include(src => src.Components!).ThenInclude(src => src.ElementEntities!.OrderBy(src => src.Position)).ThenInclude(src => src.Element!)
-                    .Include(src => src.Parent!).ThenInclude(src => src.ProductionOrder!.Equipment!)
+                    .Include(src => src.Parent!).ThenInclude(src => src.ProductionOrders!).ThenInclude(src => src.Equipment!)
                     .Include(src => src.UserInfo!))
                 //.OrderByDescending(src => src.Priority)
                 //.ThenByDescending(src => src.Id)
@@ -108,26 +112,60 @@ namespace FGMS.PC.Api.Controllers
         {
             var entity = await workOrderService.ModelAsync(
                 expression: src => src.Status != WorkOrderStatus.工单结束 && src.Components!.Any(src => src.ElementEntities!.FirstOrDefault(src => src.Code!.Equals(eeCode)) != null),
-                include: src => src.Include(src => src.ProductionOrder!.Equipment!).Include(src => src.UserInfo!).Include(src => src.Components!).ThenInclude(src => src.ElementEntities!));
+                include: src => src.Include(src => src.ProductionOrders!).ThenInclude(src => src.Equipment!).Include(src => src.UserInfo!).Include(src => src.Components!).ThenInclude(src => src.ElementEntities!));
             if (entity is null)
                 return new { success = false, message = "工单不存在或已删除" };
             return mapper.Map<WorkOrderDto>(entity);
         }
 
         /// <summary>
+        /// 获取机台已接收的砂轮工单
+        /// </summary>
+        /// <param name="equipmentCode">机台编码</param>
+        /// <returns></returns>
+        [HttpGet("existsByEquipment")]
+        [PermissionAsync("whell_order_management", "view", "电脑")]
+        public async Task<IActionResult> ExistsByEquipmentAsync(string equipmentCode)
+        {
+            var workOrders = await workOrderService.ListAsync(src => 
+                (src.ProductionOrders!.Any(po => po.Equipment!.Code.Equals(equipmentCode)) || 
+                src.PreAllocationEquipmentCode!.Equals(equipmentCode)) && 
+                (src.Status == WorkOrderStatus.机台接收 || 
+                src.Status == WorkOrderStatus.审核通过 || 
+                src.Status == WorkOrderStatus.砂轮整备 || 
+                src.Status == WorkOrderStatus.参数修整 || 
+                src.Status == WorkOrderStatus.整备完成));
+            var dtos = mapper.Map<List<WorkOrderDto>>(workOrders);
+            return Ok(new { success = true, message="查询成功", data = dtos });
+        }
+
+        /// <summary>
         /// 添加工单
         /// </summary>
-        /// <param name="dto"></param>
+        /// <param name="dto">{ 'materialNo': 'string', 'materialSpec': 'string', 'preEquCode':'string', 'requiredDate':'string', 'remark': 'string' }</param>
         /// <returns></returns>
         [HttpPost("add")]
         [PermissionAsync("whell_order_management", "management", "电脑")]
-        public async Task<dynamic> AddAsync([FromBody] WorkOrderDto dto)
+        public async Task<dynamic> AddAsync([FromBody] dynamic dto)
         {
-            var entity = mapper.Map<WorkOrder>(dto);
-            entity.OrderNo = $"WO{randomNumber.CreateOrderNum()}";
-            entity.AgvTaskCode = Guid.NewGuid().ToString("N")[..16];
-            entity.Type = WorkOrderType.砂轮申领;
-            entity.Status = WorkOrderStatus.待审;
+            if (dto is null || dto.materialNo is null || dto.materialSpec is null || dto.preEquCode is null || dto.requiredDate is null)
+                return new { success = false, message = "参数错误" };
+
+            var entity = new WorkOrder
+            {
+                OrderNo = $"WO{randomNumber.CreateOrderNum()}",
+                AgvTaskCode = Guid.NewGuid().ToString("N")[..16],
+                MaterialNo = dto.materialNo,
+                MaterialSpec = dto.materialSpec,
+                Type = WorkOrderType.砂轮申领,
+                Status = WorkOrderStatus.待审,
+                Priority = WorkOrderPriority.高,
+                PreAllocationEquipmentCode = dto.preEquCode,
+                RequiredDate = DateTime.TryParse(dto.requiredDate.ToString(), out DateTime requiredDate) ? requiredDate : null,
+                UserInfoId = userOnline.Id!.Value,
+                Remark = dto.remark
+            };
+
             bool success = await workOrderService.AddAsync(entity);
             return new { success, message = success ? "添加成功" : "添加失败" };
         }
@@ -135,15 +173,29 @@ namespace FGMS.PC.Api.Controllers
         /// <summary>
         /// 审核
         /// </summary>
-        /// <param name="paramJson">{ 'woId' : int , 'nonStdCount': int, 'stdIds': [int] }</param>
+        /// <param name="paramJson">{ 'option' : 'string', 'woId' : int , 'nonStdCount': int, 'stdIds': [int], 'poId': int }</param>
         /// <returns></returns>
         [HttpPut("audit")]
         [PermissionAsync("whell_order_management", "audit", "电脑")]
         public async Task<dynamic> AuditAsync([FromBody] dynamic paramJson)
         {
-            if (paramJson is null || paramJson!.woId is null && paramJson!.status is null)
+            if (paramJson is null || paramJson!.option is null || paramJson.woId is null)
                 return new { success = false, message = "参数错误" };
+
             return await workOrderService.AuditAsync(paramJson);
+
+            //string option = paramJson.option;
+
+            //if (option.Equals("op1"))
+            //{
+            //    return await workOrderService.AuditAsync(paramJson);
+            //}
+            //else
+            //{
+            //    int woId = paramJson.woId;
+            //    int poId = paramJson.poId;
+            //    return await workOrderService.ManualAllocationAsync(woId, poId);
+            //}
         }
         
         /// <summary>
@@ -229,23 +281,23 @@ namespace FGMS.PC.Api.Controllers
             return success ? Ok(new { success, jsonResult.message }) : BadRequest(new { success, jsonResult.message });
         }
 
-        /// <summary>
-        /// 解绑制令单
-        /// </summary>
-        /// <param name="paramJson">{ 'orderNo': string }</param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentNullException"></exception>
-        [AllowAnonymous]
-        [HttpPut("unBind")]
-        public async Task<IActionResult> UnBindAsync([FromBody] dynamic paramJson)
-        {
-            if (paramJson is null || paramJson.orderNo is null)
-                throw new ArgumentNullException(nameof(paramJson));
+        ///// <summary>
+        ///// 解绑制令单
+        ///// </summary>
+        ///// <param name="paramJson">{ 'orderNo': string }</param>
+        ///// <returns></returns>
+        ///// <exception cref="ArgumentNullException"></exception>
+        //[AllowAnonymous]
+        //[HttpPut("unBind")]
+        //public async Task<IActionResult> UnBindAsync([FromBody] dynamic paramJson)
+        //{
+        //    if (paramJson is null || paramJson.orderNo is null)
+        //        throw new ArgumentNullException(nameof(paramJson));
 
-            string orderNo = paramJson.orderNo;
-            var resultJson = await workOrderService.UnbindProductionAsync(orderNo);
-            bool successed = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(resultJson)).success;
-            return successed ? Ok(resultJson) : BadRequest(resultJson);
-        }
+        //    string orderNo = paramJson.orderNo;
+        //    var resultJson = await workOrderService.UnbindProductionAsync(orderNo);
+        //    bool successed = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(resultJson)).success;
+        //    return successed ? Ok(resultJson) : BadRequest(resultJson);
+        //}
     }
 }

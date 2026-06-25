@@ -81,7 +81,7 @@ namespace FGMS.PC.Api.Controllers
         [PermissionAsync("production_order_management", "view", "电脑")]
         public async Task<IActionResult> ListByEquipmentAsync(int equipmentId)
         {
-            var query = productionOrderService.GetQueryable(expression: src => src.EquipmentId == equipmentId && src.WorkOrder == null && !src.MaterialIssueOrders.Any() && src.Status == ProductionOrderStatus.已排配);
+            var query = productionOrderService.GetQueryable(expression: src => src.EquipmentId == equipmentId && src.WorkOrder == null && !src.MaterialIssueOrders!.Any() && src.Status == ProductionOrderStatus.已排配);
             var entities = await query.ToListAsync();
             var dtos = mapper.Map<List<ProductionOrderDto>>(entities);
             return Ok(dtos);
@@ -99,7 +99,7 @@ namespace FGMS.PC.Api.Controllers
         public async Task<IActionResult> LogListAsync(int? pageIndex, int? pageSize, string? keyword)
         {
             var expression = ExpressionBuilder.GetTrue<ProductionOrderLog>().AndIf(!string.IsNullOrEmpty(keyword), x => x.Operation!.Contains(keyword!));
-            var query = productionOrderLogService.GetQueryable(expression).AsNoTracking();
+            var query = productionOrderLogService.GetQueryable(expression).OrderByDescending(src => src.Id).AsNoTracking();
             int total = await query.CountAsync();
             if (pageIndex.HasValue && pageSize.HasValue)
                 query = query.Skip((pageIndex.Value - 1) * pageSize.Value).Take(pageSize.Value);

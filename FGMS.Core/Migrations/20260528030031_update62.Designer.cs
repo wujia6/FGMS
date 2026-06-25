@@ -4,6 +4,7 @@ using FGMS.Core.EfCore.Implements;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FGMS.Core.Migrations
 {
     [DbContext(typeof(FgmsDbContext))]
-    partial class FgmsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260528030031_update62")]
+    partial class update62
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -788,16 +790,11 @@ namespace FGMS.Core.Migrations
                         .HasPrecision(6, 2)
                         .HasColumnType("float(6)");
 
-                    b.Property<int?>("WorkOrderId")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
                     b.HasIndex("EquipmentId");
 
                     b.HasIndex("UserInfoId");
-
-                    b.HasIndex("WorkOrderId");
 
                     b.ToTable("ProductionOrders");
                 });
@@ -1039,11 +1036,10 @@ namespace FGMS.Core.Migrations
                     b.Property<int?>("Pid")
                         .HasColumnType("int");
 
-                    b.Property<string>("PreAllocationEquipmentCode")
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
                     b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ProductionOrderId")
                         .HasColumnType("int");
 
                     b.Property<string>("Remark")
@@ -1074,6 +1070,8 @@ namespace FGMS.Core.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Pid");
+
+                    b.HasIndex("ProductionOrderId");
 
                     b.HasIndex("RenovateorId");
 
@@ -1272,16 +1270,9 @@ namespace FGMS.Core.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("FGMS.Models.Entities.WorkOrder", "WorkOrder")
-                        .WithMany("ProductionOrders")
-                        .HasForeignKey("WorkOrderId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.Navigation("Equipment");
 
                     b.Navigation("UserInfo");
-
-                    b.Navigation("WorkOrder");
                 });
 
             modelBuilder.Entity("FGMS.Models.Entities.RoleInfo", b =>
@@ -1358,6 +1349,11 @@ namespace FGMS.Core.Migrations
                         .HasForeignKey("Pid")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("FGMS.Models.Entities.ProductionOrder", "ProductionOrder")
+                        .WithMany("WorkOrders")
+                        .HasForeignKey("ProductionOrderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("FGMS.Models.Entities.UserInfo", "Renovateor")
                         .WithMany()
                         .HasForeignKey("RenovateorId")
@@ -1370,6 +1366,8 @@ namespace FGMS.Core.Migrations
                         .IsRequired();
 
                     b.Navigation("Parent");
+
+                    b.Navigation("ProductionOrder");
 
                     b.Navigation("Renovateor");
 
@@ -1457,6 +1455,8 @@ namespace FGMS.Core.Migrations
             modelBuilder.Entity("FGMS.Models.Entities.ProductionOrder", b =>
                 {
                     b.Navigation("MaterialIssueOrders");
+
+                    b.Navigation("WorkOrders");
                 });
 
             modelBuilder.Entity("FGMS.Models.Entities.RoleInfo", b =>
@@ -1483,8 +1483,6 @@ namespace FGMS.Core.Migrations
                     b.Navigation("Childrens");
 
                     b.Navigation("Components");
-
-                    b.Navigation("ProductionOrders");
 
                     b.Navigation("WorkOrderStandards");
                 });

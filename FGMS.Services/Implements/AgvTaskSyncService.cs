@@ -39,14 +39,14 @@ namespace FGMS.Services.Implements
                 case "start":
                     var workOrder = await orderRepository.GetEntityAsync(
                         expression: src => src.AgvTaskCode.Equals(taskCode),
-                        include: src => src.Include(src => src.ProductionOrder!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize!));
+                        include: src => src.Include(src => src.ProductionOrders!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize!));
 
                     if (workOrder is null)
                         return;
 
-                    var equipment = workOrder.ProductionOrder is null ?
+                    var equipment = workOrder.ProductionOrders is null || !workOrder.ProductionOrders.Any() ?
                         await equipmentRepository.GetEntityAsync(expression: src => src.Code.Equals(workOrder.RepairEquipmentCode), include: src => src.Include(src => src.Organize!)) :
-                        workOrder.ProductionOrder.Equipment;
+                        workOrder.ProductionOrders.First().Equipment;
 
                     string orgCode = equipment!.Organize!.Code;
                     var sync = new AgvTaskSync
@@ -74,7 +74,7 @@ namespace FGMS.Services.Implements
 
         public async Task<dynamic> ExecuteAgvTaskAsync(string taskType, string taskUrl, string taskCode, string? start = null, string? end = null)
         {
-            var orderEntity = await orderRepository.GetEntityAsync(expression: src => src.AgvTaskCode.Equals(taskCode));
+            var orderEntity = await orderRepository.GetEntityAsync(expression: src => src.AgvTaskCode.Equals(taskCode), include: src => src.Include(src => src.ProductionOrders!));
 
             if (orderEntity is null)
                 return new { success = false, message = "未知工单" };
@@ -103,6 +103,13 @@ namespace FGMS.Services.Implements
                     if (string.IsNullOrEmpty(end) && orderEntity.Type == WorkOrderType.砂轮返修)
                     {
                         var equipment = await equipmentRepository.GetEntityAsync(expression: src => src.Code.Equals(orderEntity.RepairEquipmentCode),include: src => src.Include(src => src.Organize!));
+                        end = equipment?.Organize?.Code;
+                    }
+
+                    // 如果是预配送工单且没有制令单
+                    if (!string.IsNullOrEmpty(orderEntity.PreAllocationEquipmentCode) && orderEntity.Type == WorkOrderType.砂轮申领 && orderEntity.ProductionOrders is null)
+                    { 
+                        var equipment = await equipmentRepository.GetEntityAsync(expression: src => src.Code.Equals(orderEntity.PreAllocationEquipmentCode), include: src => src.Include(src => src.Organize!));
                         end = equipment?.Organize?.Code;
                     }
 

@@ -7,7 +7,6 @@ namespace FGMS.Models.Entities
     {
         public int Id { get; set; }
         public int? Pid { get; set; }
-        public int? ProductionOrderId { get; set; }
         public int UserInfoId { get; set; }
         public string OrderNo { get; set; }
         public WorkOrderType Type { get; set; }
@@ -22,11 +21,11 @@ namespace FGMS.Models.Entities
         public string AgvStatus { get; set; }
         public int? RenovateorId { get; set; }
         public string? RepairEquipmentCode { get; set; }
-        public virtual ProductionOrder? ProductionOrder { get; set; }
+        public string? PreAllocationEquipmentCode { get; set; }
         public virtual UserInfo? UserInfo { get; set; }
         public virtual WorkOrder? Parent { get; set; }
         public virtual UserInfo? Renovateor { get; set; }
-        //public virtual IEnumerable<ProductionOrder>? ProductionOrders { get; set; }
+        public virtual IEnumerable<ProductionOrder>? ProductionOrders { get; set; }
         public virtual IEnumerable<WorkOrderStandard>? WorkOrderStandards { get; set; }
         public virtual IEnumerable<Component>? Components { get; set; }
         public virtual IEnumerable<WorkOrder>? Childrens { get; set; }
@@ -37,7 +36,7 @@ namespace FGMS.Models.Entities
         public void Configure(EntityTypeBuilder<WorkOrder> builder)
         {
             builder.HasKey(x => x.Id);
-            builder.Property(x => x.ProductionOrderId);
+            //builder.Property(x => x.ProductionOrderId);
             builder.Property(x => x.UserInfoId).IsRequired();
             builder.Property(x => x.OrderNo).IsRequired().HasMaxLength(20);
             builder.Property(x => x.Type).IsRequired();
@@ -52,9 +51,8 @@ namespace FGMS.Models.Entities
             builder.Property(x => x.AgvStatus).IsRequired().HasMaxLength(20).HasDefaultValue("execute");
             builder.Property(x => x.RenovateorId);
             builder.Property(x => x.RepairEquipmentCode).HasMaxLength(10);
+            builder.Property(x => x.PreAllocationEquipmentCode).HasMaxLength(10);
             builder.HasOne(x => x.Parent).WithMany(x => x.Childrens).HasForeignKey(x => x.Pid).OnDelete(DeleteBehavior.Restrict);
-            builder.HasOne(x => x.ProductionOrder).WithOne(x => x.WorkOrder).HasForeignKey<WorkOrder>(x => x.ProductionOrderId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
-            //builder.HasOne(x => x.UserInfo).WithMany(x => x.WorkOrders).HasForeignKey(x => x.UserInfoId).OnDelete(DeleteBehavior.Restrict);
             builder.HasOne(x => x.Renovateor).WithMany().HasForeignKey(x => x.RenovateorId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);// Renovateor不建立反向导航属性
         }
     }

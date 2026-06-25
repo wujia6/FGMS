@@ -77,13 +77,13 @@ namespace FGMS.Android.Api.Controllers
                 .And(src => src.Status != WorkOrderStatus.待审 && src.Status != WorkOrderStatus.驳回 && 
                     src.Status != WorkOrderStatus.机台接收 && src.Status != WorkOrderStatus.工单配送 && 
                     src.Status != WorkOrderStatus.工单结束 && src.Status != WorkOrderStatus.取消)
-                .AndIf(!string.IsNullOrEmpty(equipmentCode), src => src.ProductionOrder!.Equipment!.Code.Equals(equipmentCode))
+                .AndIf(!string.IsNullOrEmpty(equipmentCode), src => src.ProductionOrders!.Any(po => po.Equipment!.Code.Equals(equipmentCode)))
                 .AndIf(!string.IsNullOrEmpty(type), src => src.Type == Enum.Parse<WorkOrderType>(type!));
 
             var entities = await workOrderService.ListAsync(
                 expression,
-                include: src => src.Include(src => src.ProductionOrder!.Equipment!)
-                    .Include(src => src.ProductionOrder!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize!)
+                include: src => src.Include(src => src.ProductionOrders!).ThenInclude(po => po.Equipment!)
+                    .Include(src => src.ProductionOrders!).ThenInclude(po => po.Equipment!).ThenInclude(po => po.Organize!)
                     .Include(src => src.UserInfo!)
                     .Include(src => src.WorkOrderStandards!).ThenInclude(src => src.Standard!)
                     .Include(src => src.Components!)
@@ -101,7 +101,7 @@ namespace FGMS.Android.Api.Controllers
         {
             var entity = await workOrderService.ModelAsync(
                 expression: src => src.Components!.FirstOrDefault(src => src.ElementEntities!.FirstOrDefault(src => src.Code!.Equals(eeCode)) != null) != null,
-                include: src => src.Include(src => src.ProductionOrder!).ThenInclude(src => src.Equipment!)
+                include: src => src.Include(src => src.ProductionOrders!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize)
                     .Include(src => src.Childrens)
                     .Include(src => src.UserInfo)
                     .Include(src => src.Renovateor!)
@@ -117,29 +117,29 @@ namespace FGMS.Android.Api.Controllers
             return mapper.Map<WorkOrderDto>(entity);
         }
 
-        /// <summary>
-        /// 创建砂轮工单
-        /// </summary>
-        /// <param name="dto"></param>
-        /// <returns></returns>
-        [HttpPost]
-        public async Task<dynamic> CreateAsync([FromBody] WorkOrderDto dto)
-        {
-            bool exists = await workOrderService.ModelAsync(expression: src => src.ProductionOrderId == dto.ProductionOrderId && src.Type == WorkOrderType.砂轮申领) != null;
+        ///// <summary>
+        ///// 创建砂轮工单
+        ///// </summary>
+        ///// <param name="dto"></param>
+        ///// <returns></returns>
+        //[HttpPost]
+        //public async Task<dynamic> CreateAsync([FromBody] WorkOrderDto dto)
+        //{
+        //    bool exists = await workOrderService.ModelAsync(expression: src => src.ProductionOrders!.Any(po => po.Id == dto.ProductionOrderId) && src.Type == WorkOrderType.砂轮申领) != null;
 
-            if (exists)
-                return new { success = false, message = "申请已存在，请勿重复申请砂轮" };
+        //    if (exists)
+        //        return new { success = false, message = "申请已存在，请勿重复申请砂轮" };
 
-            var entity = mapper.Map<WorkOrder>(dto);
-            entity.OrderNo = $"WO{randomNumber.CreateOrderNum()}";
-            entity.UserInfoId = userOnline.Id!.Value;
-            entity.Type = WorkOrderType.砂轮申领;
-            entity.Priority = WorkOrderPriority.低;
-            entity.Status = WorkOrderStatus.待审;
-            entity.AgvTaskCode = Guid.NewGuid().ToString("N")[..16];
-            bool success = await workOrderService.AddAsync(entity);
-            return new { success, message = success ? $"已创建砂轮工单：{entity.OrderNo}" : "创建失败" };
-        }
+        //    var entity = mapper.Map<WorkOrder>(dto);
+        //    entity.OrderNo = $"WO{randomNumber.CreateOrderNum()}";
+        //    entity.UserInfoId = userOnline.Id!.Value;
+        //    entity.Type = WorkOrderType.砂轮申领;
+        //    entity.Priority = WorkOrderPriority.低;
+        //    entity.Status = WorkOrderStatus.待审;
+        //    entity.AgvTaskCode = Guid.NewGuid().ToString("N")[..16];
+        //    bool success = await workOrderService.AddAsync(entity);
+        //    return new { success, message = success ? $"已创建砂轮工单：{entity.OrderNo}" : "创建失败" };
+        //}
 
         /// <summary>
         /// 机台接收
@@ -156,7 +156,7 @@ namespace FGMS.Android.Api.Controllers
             int orderId = paramJson!.id;
             var orderEntity = await workOrderService.ModelAsync(
                 expression: src => src.Id == orderId,
-                include: src => src.Include(src => src.Parent!).Include(src => src.Components!).ThenInclude(src => src.ElementEntities!).Include(src => src.ProductionOrder!).ThenInclude(src => src.Equipment!));
+                include: src => src.Include(src => src.Parent!).Include(src => src.Components!).ThenInclude(src => src.ElementEntities!).Include(src => src.ProductionOrders!).ThenInclude(po => po.Equipment!));
 
             if (orderEntity.Type == WorkOrderType.砂轮返修 && orderEntity.Parent != null)
             {
@@ -172,7 +172,7 @@ namespace FGMS.Android.Api.Controllers
             }
             else if (orderEntity.Type == WorkOrderType.砂轮申领)
             {
-                if (orderEntity.ProductionOrder is null)
+                if (orderEntity.ProductionOrders is null || !orderEntity.ProductionOrders.Any())
                     return new { success = false, message = "未关联制令单，无法接收" };
 
                 var cmps = orderEntity.Components;
@@ -186,7 +186,7 @@ namespace FGMS.Android.Api.Controllers
                         cmp.ElementEntities!.ToList().ForEach(ee => logs.Add(new TrackLog
                         {
                             Type = LogType.其他,
-                            Content = $"工件：{ee.MaterialNo} | 机台：{orderEntity.ProductionOrder!.Equipment!.Code} 接收"
+                            Content = $"工件：{ee.MaterialNo} | 机台：{orderEntity.ProductionOrders!.First().Equipment!.Code} 接收"
                         }));
                     });
                     await trackLogService.AddAsync(logs);
@@ -216,11 +216,11 @@ namespace FGMS.Android.Api.Controllers
         [HttpPut]
         public async Task<dynamic> RepairAsync([FromBody] dynamic paramJson)
         {
-            if (paramJson is null || paramJson.workOrderId is null || paramJson.equipmentId is null || paramJson.materialNo is null || paramJson.materialSpec is null || paramJson.ees is null)
+            if (paramJson is null || paramJson.workOrderId is null || paramJson.materialNo is null || paramJson.materialSpec is null || paramJson.ees is null)
                 return new { success = false, message = "缺少参数" };
 
             int workOrderId = paramJson.workOrderId;
-            int equipmentId = paramJson.equipmentId;
+            int equipmentId = paramJson.equipmentId ?? 0;
 
             var workOrder = await workOrderService.ModelAsync(
                 expression: src => src.Id == workOrderId,
@@ -229,7 +229,10 @@ namespace FGMS.Android.Api.Controllers
             if (workOrder.Components!.Any(src => src.ElementEntities!.FirstOrDefault(src => src.Status != ElementEntityStatus.出库 && src.Status != ElementEntityStatus.下机) != null))
                 return new { success = false, message = "工件状态为出库或下机，才能创建返修单" };
 
-            var equipment = await equipmentService.ModelAsync(src => src.Id == equipmentId, include: src => src.Include(src => src.Organize!));
+            var expression = ExpressionBuilder.GetTrue<Equipment>()
+                .AndIf(equipmentId > 0, src => src.Id == equipmentId)
+                .AndIf(!string.IsNullOrEmpty(workOrder.PreAllocationEquipmentCode), src => src.Code.Equals(workOrder.PreAllocationEquipmentCode));
+            var equipment = await equipmentService.ModelAsync(expression, include: src => src.Include(src => src.Organize!));
 
             if (equipment is null || equipment.Organize is null)
                 return new { success = false, message = "设备信息异常，无法创建返修单" };
@@ -435,27 +438,30 @@ namespace FGMS.Android.Api.Controllers
             int woId = paramJson.workOrderId;
             var entity = await workOrderService.ModelAsync(
                 expression: src => src.Id == woId,
-                include: src => src
-                    .Include(src => src.ProductionOrder!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize)
-                    .Include(src => src.Components!).ThenInclude(src => src.ElementEntities!)
+                include: src => src.Include(src => src.ProductionOrders!).ThenInclude(po => po.Equipment!).ThenInclude(e => e.Organize)
+                    .Include(src => src.Components!).ThenInclude(c => c.ElementEntities!)
                     .Include(src => src.Childrens!));
 
             if (entity is null)
                 return new { success = false, message = "未知工单" };
 
-            if (entity.ProductionOrder is null)
-                return new { success = false, message = "未关联制令单，无法退仓" };
-
-            var ees = entity.Components!.SelectMany(src => src.ElementEntities!);
-
             if (entity.Childrens!.Any(src => src.Type == WorkOrderType.砂轮返修))
                 return new { success = false, message = "已执行返修流程，无法退仓" };
 
+            var ees = entity.Components!.SelectMany(src => src.ElementEntities!);
+
             if (!ees.Any())
-                return new { success = false, message = "工单异常" };
+                return new { success = false, message = "砂轮工单未包含砂轮组件" };
 
             if (ees.FirstOrDefault(src => src.Status != ElementEntityStatus.下机 && src.Status != ElementEntityStatus.出库) != null)
                 return new { success = false, message = "工件状态异常！无法退仓" };
+
+            if ((entity.ProductionOrders is null || !entity.ProductionOrders.Any()) && string.IsNullOrEmpty(entity.PreAllocationEquipmentCode))
+                return new { success = false, message = "未关联制令单或设备，无法退仓" };
+
+            var equipment = entity.ProductionOrders is null || !entity.ProductionOrders.Any() ? 
+                await equipmentService.ModelAsync(expression: src => src.Code.Equals(entity.PreAllocationEquipmentCode), include: src => src.Include(src => src.Organize!)) : 
+                entity.ProductionOrders!.First().Equipment!;
 
             entity.Type = WorkOrderType.砂轮退仓;
             entity.Status = WorkOrderStatus.AGV收料;
@@ -476,7 +482,7 @@ namespace FGMS.Android.Api.Controllers
             { 
                 success, 
                 message = success ? "操作成功" : "操作失败", 
-                data = success ? new { agvTaskCode = entity.AgvTaskCode, start = entity.ProductionOrder!.Equipment!.Organize!.Code, end = "GW2" } : null 
+                data = success ? new { agvTaskCode = entity.AgvTaskCode, start = equipment.Organize!.Code, end = "GW2" } : null 
             };
         }
 

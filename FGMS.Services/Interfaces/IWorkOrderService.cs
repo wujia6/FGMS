@@ -22,6 +22,6 @@ namespace FGMS.Services.Interfaces
 
         Task<dynamic> WheelBackStockAsync(int woId);
 
-        Task<dynamic> UnbindProductionAsync(string orderNo);
+        //Task<dynamic> UnbindProductionAsync(string orderNo);
     }
 }

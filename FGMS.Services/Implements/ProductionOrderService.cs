@@ -59,15 +59,15 @@ namespace FGMS.Services.Implements
             if (!productionOrder.IsDc!.Value && productionOrder.Status != ProductionOrderStatus.已收料)
                 return new { success = false, message = "请按流程叫料、收料后，再开工" };
 
-            if (productionOrder.WorkOrder != null)
+            if (productionOrder.WorkOrder! != null)
             {
-                if (productionOrder.WorkOrder.Status != WorkOrderStatus.机台接收)
-                    return new { success = false, message = $"砂轮工单：{productionOrder.WorkOrder.OrderNo}未接收" };
+                if (productionOrder.WorkOrder!.Status != WorkOrderStatus.机台接收)
+                    return new { success = false, message = $"砂轮工单：{productionOrder.WorkOrder!.OrderNo}未接收" };
 
-                if (productionOrder.WorkOrder.Status == WorkOrderStatus.挂起)
-                    return new { success = false, message = $"砂轮工单：{productionOrder.WorkOrder.OrderNo}已挂起，无法开工" };
-
-                if (productionOrder.WorkOrder.Components != null && productionOrder.WorkOrder.Components.Any(src => src.ElementEntities != null && src.ElementEntities.Any(e => e.Status != ElementEntityStatus.上机)))
+                if (productionOrder.WorkOrder!.Status == WorkOrderStatus.挂起)
+                    return new { success = false, message = $"砂轮工单：{productionOrder.WorkOrder!.OrderNo}已挂起，无法开工" };
+                if (productionOrder.WorkOrder!.Components != null && 
+                    productionOrder.WorkOrder!.Components.Any(src => src.ElementEntities != null && src.ElementEntities.Any(e => e.Status != ElementEntityStatus.上机)))
                     return new { success = false, message = "砂轮未上机" };
             }
 
@@ -149,7 +149,7 @@ namespace FGMS.Services.Implements
                 return new { success = false, message = "未知制令单" };
 
             var issueOrders = entity.MaterialIssueOrders;
-            var workOrder = entity.WorkOrder;
+            var workOrder = entity.WorkOrder!;
 
             await fgmsDbContext.BeginTrans();
             try

@@ -72,15 +72,13 @@ namespace FGMS.Android.Api.Controllers
                 .AndIf(!string.IsNullOrEmpty(equCode), x => x.Equipment!.Code.Equals(equCode))
                 .And(x => x.Status != ProductionOrderStatus.已完成 && x.Status != ProductionOrderStatus.已暂停 && x.Report!.Value == false && !x.CompletedTime.HasValue);
 
-            var query = productionOrderService.GetQueryable(
-                expression,
-                include: x => x
-                    .Include(x => x.UserInfo!)
-                    .Include(x => x.Equipment!)
-                    .Include(x => x.WorkOrder!)
-                    .Include(x => x.MaterialIssueOrders!).ThenInclude(mio => mio.Sendor!))
-                    .OrderBy(x => x.Id)
-                    .AsNoTracking();
+            var query = productionOrderService.GetQueryable(expression, include: x => x
+                .Include(x => x.UserInfo!)
+                .Include(x => x.Equipment!).ThenInclude(x => x.Organize!)
+                .Include(x => x.WorkOrder)
+                .Include(x => x.MaterialIssueOrders!).ThenInclude(mio => mio.Sendor!))
+                .OrderBy(x => x.Id)
+                .AsNoTracking();
 
             var total = await query.CountAsync();
             if (pageIndex.HasValue && pageSize.HasValue)
