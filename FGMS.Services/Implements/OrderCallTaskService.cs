@@ -97,7 +97,7 @@ namespace FGMS.Services.Implements
                 await dbContext.BeginTrans();
                 // 查询所有已排配未报工的制令单
                 var productOrders = await productionOrderRepository.GetListAsync(
-                    expression: src => src.Status != ProductionOrderStatus.已暂停 && src.Status != ProductionOrderStatus.已完成,
+                    expression: src => src.Status != ProductionOrderStatus.已暂停,
                     include: src => src.Include(src => src.Equipment!).Include(src => src.WorkOrder!),
                     asNoTracking: false);
 
@@ -149,7 +149,7 @@ namespace FGMS.Services.Implements
                 // 更新待发料的制令单状态，并确定哪些需要申请砂轮
                 productOrders.Where(src => availableOrders.Any(dest => dest.Id == src.Id)).ToList().ForEach(src => src.Status = ProductionOrderStatus.待发料);
                 equipmentGroups = productOrders.GroupBy(src => src.EquipmentId);
-                var processProductionOrders = DetermineOrdersRequiringWheel(equipmentGroups);
+                var processProductionOrders = DetermineOrdersRequireWheel(equipmentGroups);
                 if (processProductionOrders.Any())
                 {
                     // 添加砂轮工单
@@ -381,6 +381,44 @@ namespace FGMS.Services.Implements
                     {
                         order.RequireWheel = true;  // 标记需要砂轮
                         existingFinishDcCodes.Add(order.FinishCode);
+                        result.Add(order);
+                    }
+                }
+            }
+            return result;
+        }
+
+        // 确定哪些制令单需要申请砂轮
+        private static List<ProductionOrder> DetermineOrdersRequireWheel(IEnumerable<IGrouping<int, ProductionOrder>> groupData)
+        {
+            var result = new List<ProductionOrder>();
+            // 按设备分组处理
+            foreach (var data in groupData)
+            {
+                // 获取当前设备下所有制令单
+                var allOrders = data.ToList();
+                // 获取制令当关联（未驳回、未结束、未退仓配送）的砂轮工单的成品料号
+                var existingFinishCodes = allOrders.Where(src =>
+                        src.WorkOrder != null &&
+                        src.WorkOrder.Pid == null &&
+                        src.WorkOrder.Status != WorkOrderStatus.待审 &&
+                        src.WorkOrder.Status != WorkOrderStatus.驳回 &&
+                        src.WorkOrder.Status != WorkOrderStatus.退仓配送 &&
+                        src.WorkOrder.Status != WorkOrderStatus.工单结束)
+                    .Select(src => src.WorkOrder)
+                    .Select(src => src!.MaterialNo)
+                    .Distinct()
+                    .ToHashSet();
+
+                // 处理待发料且未处理砂轮申请的制令单
+                var waitingOrders = allOrders.Where(order => !order.RequireWheel).ToList();
+                foreach (var order in waitingOrders)
+                {
+                    // 检查生产列表的成品料号，如当前制令单的成品料号不在生产的列表中，则需要申请砂轮
+                    if ((order.Status == ProductionOrderStatus.待发料 && !order.IsDc!.Value || order.IsDc!.Value && order.Status != ProductionOrderStatus.已完成) && !existingFinishCodes.Contains(order.FinishCode))
+                    {
+                        order.RequireWheel = true;  // 标记需要砂轮
+                        existingFinishCodes.Add(order.FinishCode);
                         result.Add(order);
                     }
                 }

@@ -122,7 +122,7 @@ namespace FGMS.PC.Api.Controllers
                 {
                     var wos = equipment.ProductionOrders!
                         .Where(src => src.WorkOrder != null && src.WorkOrder!.Status == WorkOrderStatus.机台接收)
-                        .Select(src => src.WorkOrder!);
+                        .Select(src => src.WorkOrder!).Distinct();
 
                     if (wos.Any())
                     {
@@ -133,8 +133,8 @@ namespace FGMS.PC.Api.Controllers
                             currentUpper = ees.FirstOrDefault(src => src.Status == ElementEntityStatus.上机) == null 
                                 ? string.Empty 
                                 : ees.FirstOrDefault(src => src.Status == ElementEntityStatus.上机)!.Component!.WorkOrder!.OrderNo;
-                            receiveList = wos.Select(src => src.OrderNo);
-                            downList = wos.Where(src => src.Components!.Where(src => src.ElementEntities!.Where(src => src.Status == ElementEntityStatus.下机).Any()).Any()).Select(src => src.OrderNo);
+                            receiveList = wos.Select(src => src.OrderNo).Distinct();
+                            downList = wos.Where(src => src.Components!.Where(src => src.ElementEntities!.Where(src => src.Status == ElementEntityStatus.下机).Any()).Any()).Select(src => src.OrderNo).Distinct();
                         }
                     }
                 }

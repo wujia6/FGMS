@@ -172,8 +172,8 @@ namespace FGMS.Android.Api.Controllers
             }
             else if (orderEntity.Type == WorkOrderType.砂轮申领)
             {
-                if (orderEntity.ProductionOrders is null || !orderEntity.ProductionOrders.Any())
-                    return new { success = false, message = "未关联制令单，无法接收" };
+                //if (orderEntity.ProductionOrders is null || !orderEntity.ProductionOrders.Any())
+                //    return new { success = false, message = "未关联制令单，无法接收" };
 
                 var cmps = orderEntity.Components;
                 orderEntity.Status = WorkOrderStatus.机台接收;
@@ -183,10 +183,13 @@ namespace FGMS.Android.Api.Controllers
                     var logs = new List<TrackLog>();
                     cmps!.ToList().ForEach(cmp =>
                     {
+                        string equCode = (orderEntity.ProductionOrders is null || !orderEntity.ProductionOrders.Any()) && orderEntity.Priority == WorkOrderPriority.高 ?
+                            orderEntity.PreAllocationEquipmentCode ?? string.Empty :
+                            orderEntity.ProductionOrders!.First().Equipment!.Code;
                         cmp.ElementEntities!.ToList().ForEach(ee => logs.Add(new TrackLog
                         {
                             Type = LogType.其他,
-                            Content = $"工件：{ee.MaterialNo} | 机台：{orderEntity.ProductionOrders!.First().Equipment!.Code} 接收"
+                            Content = $"工件：{ee.MaterialNo} | 机台：{equCode} 接收"
                         }));
                     });
                     await trackLogService.AddAsync(logs);

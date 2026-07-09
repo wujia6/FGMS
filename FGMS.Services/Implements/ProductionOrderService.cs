@@ -198,12 +198,12 @@ namespace FGMS.Services.Implements
                     }
                 }
 
+                // 5. 删除制令单
+                productionOrderRepository.DeleteEntity(entity);
+
                 // 4. 删除砂轮工单
                 if (workOrder != null)
                     workOrderRepository.DeleteEntity(workOrder);
-
-                // 5. 删除制令单
-                productionOrderRepository.DeleteEntity(entity);
 
                 // 6. 保存变更
                 var saved = await fgmsDbContext.SaveChangesAsync() > 0;

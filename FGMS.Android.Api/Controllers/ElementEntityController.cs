@@ -48,8 +48,9 @@ namespace FGMS.Android.Api.Controllers
         [HttpGet]
         public async Task<dynamic> ScanAsync(string code, string? status)
         {
+            string decodedCode = code.Replace(' ', '+');
             var expression = ExpressionBuilder.GetTrue<ElementEntity>()
-                .And(src => src.Code!.Equals(code))
+                .And(src => src.Code!.Equals(decodedCode))
                 .AndIf(!string.IsNullOrEmpty(status), src => src.Status == Enum.Parse<ElementEntityStatus>(status!));
 
             var entity = await elementEntityService.ModelAsync(expression, include: src => src.Include(src => src.Element!));
