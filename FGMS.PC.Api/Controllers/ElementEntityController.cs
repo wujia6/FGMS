@@ -7,8 +7,8 @@ using FGMS.Utils;
 using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Routing.Constraints;
 using Microsoft.EntityFrameworkCore;
+using MiniExcelLibs;
 
 namespace FGMS.PC.Api.Controllers
 {
@@ -131,6 +131,29 @@ namespace FGMS.PC.Api.Controllers
                 Fourths = GetElementEntitiesDto(elementDict, std.FourthElementId),
                 Fifths = GetElementEntitiesDto(elementDict, std.FifthElementId)
             };
+        }
+
+        /// <summary>
+        /// 导出
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("export")]
+        [PermissionAsync("element_management", "view", "电脑")]
+        public async Task<IActionResult> ExportAsync()
+        {
+            var records = await elementEntityService.ListAsync(include: src => src.Include(src => src.Element!).Include(src => src.CargoSpace!));
+            var dtos = mapper.Map<List<ElementEntityDto>>(records);
+            
+            if (!dtos.Any())
+            {
+                return NotFound();
+            }
+
+            var fileName = $"砂轮元件_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+            var memoryStream = new MemoryStream();
+            await MiniExcel.SaveAsAsync(memoryStream, dtos, sheetName: "元件列表");
+            memoryStream.Position = 0;
+            return File(memoryStream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
 
         /// <summary>

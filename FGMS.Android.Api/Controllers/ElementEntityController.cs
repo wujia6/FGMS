@@ -101,6 +101,10 @@ namespace FGMS.Android.Api.Controllers
                 return new { success = false, message = "工件不存在" };
             else if (entity.Status == ElementEntityStatus.报废)
                 return new { success = false, message = "工件已报废，无需重复报废" };
+            else if (entity.Status != ElementEntityStatus.在库)
+                return new { success = false, message = "工件状态异常，无法报废" };
+            else if (entity.ComponentId is not null)
+                return new { success = false, message = "砂轮组工件，无法直接报废。请先拆分" };
 
             entity.CargoSpaceId = cargoSpace.Id;
             entity.Status = ElementEntityStatus.报废;

@@ -105,4 +105,10 @@
         电脑 = 1,
         移动 = 2
     }
+
+    public enum GeneralStatus
+    { 
+        未完成 = 0,
+        已完成 = 1
+    }
 }

@@ -120,7 +120,9 @@ namespace FGMS.Utils
                 .Map(dest => dest.ParentNo, src => src.Parent != null ? src.Parent!.OrderNo : string.Empty)
                 .Map(dest => dest.EquipmentId, src => src.ProductionOrders != null && src.ProductionOrders!.Any() ? src.ProductionOrders!.FirstOrDefault()!.EquipmentId : (int?)null)
                 .Map(dest => dest.EquipmentCode, src => src.ProductionOrders != null && src.ProductionOrders!.Any() ? src.ProductionOrders!.FirstOrDefault()!.Equipment!.Code : string.Empty)
-                .Map(dest => dest.OrganizeCode, src => src.ProductionOrders != null && src.ProductionOrders!.Any() ? src.ProductionOrders!.FirstOrDefault()!.Equipment!.Organize!.Code : string.Empty)
+                .Map(dest => dest.OrganizeCode, src => src.ProductionOrders != null && src.ProductionOrders!.Any() ?
+                    src.ProductionOrders!.FirstOrDefault()!.Equipment!.Organize!.Code :
+                    src.Parent == null ? string.Empty : src.Parent!.ProductionOrders!.FirstOrDefault()!.Equipment!.Organize!.Code)
                 .Map(dest => dest.ProductionOrderId, src => src.ProductionOrders != null && src.ProductionOrders!.Any() ? src.ProductionOrders!.FirstOrDefault()!.Id : (int?)null)
                 .Map(dest => dest.ProductionOrderNo, src => src.ProductionOrders != null && src.ProductionOrders!.Any() ? src.ProductionOrders!.FirstOrDefault()!.OrderNo : string.Empty)
                 .Map(dest => dest.UserInfoName, src => src.UserInfo != null ? src.UserInfo!.Name : string.Empty)
@@ -150,6 +152,12 @@ namespace FGMS.Utils
             config.ForType<AgvTaskSync, AgvTaskSyncDto>().IgnoreNullValues(true);
 
             config.ForType<MaterialDiameter, MaterialDiameterDto>().IgnoreNullValues(true);
+
+            config.ForType<ProcessingStandard, ProcessingStandardDto>()
+                .Map(dest => dest.BomProcessorName, src => src.BomProcessor != null ? src.BomProcessor.Name : string.Empty)
+                .Map(dest => dest.HandlerName, src => src.Handler != null ? src.Handler.Name : string.Empty)
+                .Map(dest => dest.ProgramStatus, src => Enum.GetName<GeneralStatus>(src.ProgramStatus.GetValueOrDefault()))
+                .IgnoreNullValues(true);
 
             return config;
         }

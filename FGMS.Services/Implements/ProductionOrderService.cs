@@ -143,13 +143,16 @@ namespace FGMS.Services.Implements
             // 1. 加载主实体及关联数据
             var entity = await productionOrderRepository.GetEntityAsync(
                 expression: op => op.OrderNo.Equals(poNo),
-                include: src => src.Include(x => x.WorkOrder!).ThenInclude(wo => wo.Components).Include(x => x.MaterialIssueOrders!));
+                include: src => src.Include(x => x.WorkOrder!).ThenInclude(wo => wo.ProductionOrders!)
+                            .Include(x => x.WorkOrder!).ThenInclude(wo => wo.Components)
+                            .Include(x => x.MaterialIssueOrders!));
 
             if (entity == null)
                 return new { success = false, message = "未知制令单" };
-
+            
             var issueOrders = entity.MaterialIssueOrders;
             var workOrder = entity.WorkOrder!;
+            bool isDelete = workOrder != null && workOrder.ProductionOrders != null && workOrder.ProductionOrders.Count() == 1;
 
             await fgmsDbContext.BeginTrans();
             try
@@ -202,7 +205,7 @@ namespace FGMS.Services.Implements
                 productionOrderRepository.DeleteEntity(entity);
 
                 // 4. 删除砂轮工单
-                if (workOrder != null)
+                if (workOrder != null && isDelete)
                     workOrderRepository.DeleteEntity(workOrder);
 
                 // 6. 保存变更

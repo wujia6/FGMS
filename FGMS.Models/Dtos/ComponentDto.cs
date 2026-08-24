@@ -14,6 +14,7 @@
         public string? Code { get; set; }
         public bool IsStandard { get; set; }
         public string? Status { get; set; }
+        public string? DynamicBalance { get; set; }
         public StandardDto? StandardDto { get; set; }
         public WorkOrderDto? WorkOrderDto { get; set; }
         public List<ElementEntityDto>? ElementEntityDtos { get; set; }

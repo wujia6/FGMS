@@ -1,5 +1,5 @@
-﻿using System.Linq.Expressions;
-using System.Linq.Dynamic.Core;
+﻿using System.Linq.Dynamic.Core;
+using System.Linq.Expressions;
 using FGMS.Models;
 using FGMS.Models.Dtos;
 using FGMS.Models.Entities;
@@ -10,6 +10,8 @@ using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Extensions;
+using MiniExcelLibs;
 using Newtonsoft.Json;
 
 namespace FGMS.PC.Api.Controllers
@@ -26,6 +28,7 @@ namespace FGMS.PC.Api.Controllers
         private readonly IWorkOrderStandardService workOrderStandardService;
         private readonly IComponentService componentService;
         private readonly ICargoSpaceService cargoSpaceService;
+        private readonly IProcessingStandardService processingStandardService;
         private readonly GenerateRandomNumber randomNumber;
         private readonly UserOnline userOnline;
         private readonly IMapper mapper;
@@ -37,6 +40,7 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="workOrderStandardService"></param>
         /// <param name="componentService"></param>
         /// <param name="cargoSpaceService"></param>
+        /// <param name="persistenceStandardService"></param>
         /// <param name="randomNumber"></param>
         /// <param name="userOnline"></param>
         /// <param name="mapper"></param>
@@ -45,6 +49,7 @@ namespace FGMS.PC.Api.Controllers
             IWorkOrderStandardService workOrderStandardService,
             IComponentService componentService,
             ICargoSpaceService cargoSpaceService,
+            IProcessingStandardService persistenceStandardService,
             GenerateRandomNumber randomNumber,
             UserOnline userOnline,
             IMapper mapper)
@@ -53,6 +58,7 @@ namespace FGMS.PC.Api.Controllers
             this.workOrderStandardService = workOrderStandardService;
             this.componentService = componentService;
             this.cargoSpaceService = cargoSpaceService;
+            this.processingStandardService = persistenceStandardService;
             this.randomNumber = randomNumber;
             this.userOnline = userOnline;
             this.mapper = mapper;
@@ -87,7 +93,7 @@ namespace FGMS.PC.Api.Controllers
             var query = workOrderService.GetQueryable(expression, include: src => src
                     .Include(src => src.ProductionOrders!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize!)
                     .Include(src => src.Components!).ThenInclude(src => src.ElementEntities!.OrderBy(src => src.Position)).ThenInclude(src => src.Element!)
-                    .Include(src => src.Parent!).ThenInclude(src => src.ProductionOrders!).ThenInclude(src => src.Equipment!)
+                    .Include(src => src.Parent!).ThenInclude(src => src.ProductionOrders!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize!)
                     .Include(src => src.UserInfo!))
                 //.OrderByDescending(src => src.Priority)
                 //.ThenByDescending(src => src.Id)
@@ -98,7 +104,69 @@ namespace FGMS.PC.Api.Controllers
             if (pageIndex.HasValue && pageSize.HasValue)
                 query = query.Skip((pageIndex.Value - 1) * pageSize.Value).Take(pageSize.Value);
             var entities = await query.ToListAsync();
-            return new { total, rows = mapper.Map<List<WorkOrderDto>>(entities) };
+            var dtos = mapper.Map<List<WorkOrderDto>>(entities);
+
+            // 这里需要查询ProcessingStandard表，获取每个工单的加工标准信息，并将其添加到对应的WorkOrderDto中
+            var stdRecords = await processingStandardService.ListAsync();
+            if (stdRecords?.Any() == true)
+            {
+                // 一次性构建查找字典
+                var stdDict = stdRecords
+                    .Where(src => src.ProgramStatus == GeneralStatus.已完成)
+                    .GroupBy(src => src.MaterialNumber)
+                    .ToDictionary(g => g.Key, g => g.MaxBy(a => a.Id)?.StandardGrindingWheelSet);
+
+                // 批量赋值
+                foreach (var dto in dtos)
+                {
+                    if (stdDict.TryGetValue(dto.MaterialNo, out var wheelSet))
+                    {
+                        dto.StandardGrindingWheelSet = wheelSet;
+                    }
+                }
+            }
+            return new { total, rows = dtos };
+        }
+
+        /// <summary>
+        /// 导出工单
+        /// </summary>
+        /// <param name="type">类型</param>
+        /// <param name="status">状态</param>
+        /// <param name="startDate">开始日期</param>
+        /// <param name="endDate">结束日期</param>
+        /// <returns></returns>
+        [HttpGet("export")]
+        [PermissionAsync("whell_order_management", "view", "电脑")]
+        public async Task<IActionResult> ExportAsync(string? type, string? status, DateTime? startDate, DateTime? endDate)
+        {
+            var expression = ExpressionBuilder.GetTrue<WorkOrder>()
+                .AndIf(!string.IsNullOrEmpty(type), src => src.Type == Enum.Parse<WorkOrderType>(type!))
+                .AndIf(!string.IsNullOrEmpty(status), src => src.Status == Enum.Parse<WorkOrderStatus>(status!))
+                .AndIf(startDate.HasValue, src => src.CreateDate >= startDate!.Value)
+                .AndIf(endDate.HasValue, src => src.CreateDate <= endDate!.Value.Date.AddDays(1).AddSeconds(-1));
+
+            var records = await workOrderService.ListAsync(
+                expression,
+                include: src => src.Include(src => src.ProductionOrders!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize!).Include(src => src.UserInfo!));
+
+            var dtos = mapper.Map<List<WorkOrderDto>>(records);
+
+            if (!dtos.Any())
+            {
+                return NotFound(new
+                {
+                    success = true,
+                    message = "没有找到符合条件的工单",
+                    data = new List<object>()
+                });
+            }
+
+            var fileName = $"砂轮工单_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+            var memoryStream = new MemoryStream();
+            await MiniExcel.SaveAsAsync(memoryStream, dtos, sheetName: "工单列表");
+            memoryStream.Position = 0;
+            return File(memoryStream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
 
         /// <summary>
@@ -279,6 +347,32 @@ namespace FGMS.PC.Api.Controllers
             bool success = jsonResult!.success;
             //string message = jsonResult!.message;
             return success ? Ok(new { success, jsonResult.message }) : BadRequest(new { success, jsonResult.message });
+        }
+
+        /// <summary>
+        /// 工单状态更新
+        /// </summary>
+        /// <param name="paramJson">{ 'woId': int, 'status': 'string' }</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        [HttpPut("statusUpdate")]
+        public async Task<dynamic> StatusUpdate([FromBody] dynamic paramJson)
+        {
+            if (paramJson is null || paramJson.woId is null || paramJson.status is null)
+                throw new ArgumentNullException(nameof(paramJson));
+            int woId = paramJson.woId;
+            string status = paramJson.status;
+            var order = await workOrderService.ModelAsync(expression: src => src.Id == woId);
+
+            if (order is null)
+                return new { success = false, message = "工单不存在" };
+
+            if (order.Status.GetDisplayName().Equals(status))
+                return new { success = false, message = $"砂轮工单：{order.OrderNo}状态已经是{status}，请勿重复操作" };
+
+            order.Status = Enum.Parse<WorkOrderStatus>(status);
+            bool success = await workOrderService.UpdateAsync(order, new Expression<Func<WorkOrder, object>>[] { src => src.Status });
+            return new { success, message = success ? "工单状态已更新" : "工单状态更新失败" };
         }
 
         ///// <summary>

@@ -4,6 +4,7 @@ using FGMS.Models;
 using FGMS.Models.Entities;
 using FGMS.Repositories.Interfaces;
 using FGMS.Services.Interfaces;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 
@@ -269,15 +270,17 @@ namespace FGMS.Services.Implements
             }
         }
 
-        public async Task<dynamic> RenovatedAsync(ElementEntity entity, string workOrderNo, int renovateorId)
+        public async Task<dynamic> RenovatedAsync(ElementEntity entity, string dynamicBalance, int renovateorId, string workOrderNo)
         {
-            if (entity.Status != ElementEntityStatus.出库)
-                entity.Status = ElementEntityStatus.出库;
-
             var order = await workOrderRepository!.GetEntityAsync(expression: src => src.OrderNo == workOrderNo);
 
             if (order is null)
                 return new { success = false, message = "未知工单" };
+
+            var componten = await componentRepository!.GetEntityAsync(expression: src => src.Id == entity.ComponentId);
+
+            if (componten is null)
+                return new { success = false, message = "未知砂轮组" };
 
             await fgmsDbContext!.BeginTrans();
             try
@@ -288,6 +291,15 @@ namespace FGMS.Services.Implements
                     workOrderRepository.UpdateEntity(order, new Expression<Func<WorkOrder, object>>[] { src => src.RenovateorId! });
                 }
 
+                if (componten.DynamicBalance == null || (componten.DynamicBalance != null && !componten.DynamicBalance!.Equals(dynamicBalance)))
+                {
+                    componten.DynamicBalance = dynamicBalance;
+                    componentRepository.UpdateEntity(componten, new Expression<Func<Component, object>>[] { src => src.DynamicBalance! });
+                }
+
+                // 更新工件
+                entity.Status = ElementEntityStatus.出库;
+                entity.Remark = string.Empty;
                 elementEntityRepository!.UpdateEntity(entity, new Expression<Func<ElementEntity, object>>[] 
                 {
                     src => src.Status,
@@ -301,7 +313,8 @@ namespace FGMS.Services.Implements
                     src => src.PlaneWidth!,
                     src => src.AxialRunout!,
                     src => src.RadialRunout!,
-                    src => src.CurrentAngle!
+                    src => src.CurrentAngle!,
+                    src => src.Remark!
                 });
                 logRepository!.AddEntity(new TrackLog { Type = LogType.整修, Content = $"工件：{entity.MaterialNo} 整修" });
                 bool success = await fgmsDbContext.SaveChangesAsync() > 0;
@@ -806,21 +819,18 @@ namespace FGMS.Services.Implements
             return updateCmpLogs;
         }
 
-        // 砂轮组强制退仓
+        // 强制结束
         public async Task<dynamic> WheelBackStockAsync(int woId)
         {
             var record = await workOrderRepository!.GetEntityAsync(
-                expression: src => src.Id == woId, include: 
-                src => src.Include(src => src.Components!).ThenInclude(src => src.ElementEntities!).Include(src => src.ProductionOrders!));
+                expression: src => src.Id == woId && src.Parent == null,
+                include: src => src.Include(src => src.Components!).ThenInclude(src => src.ElementEntities!));
 
             if (record is null)
                 return new { success = false, message = "未知砂轮工单" };
 
             if (record.Status == WorkOrderStatus.工单结束)
                 return new { success = false, message = "砂轮工单已结束" };
-
-            if (record.ProductionOrders != null && record.ProductionOrders.Any())
-                return new { success = false, message = "正常砂轮工单，请走正常流程" };
 
             var components = record.Components!;
             if (components is null || !components.Any())
@@ -847,8 +857,9 @@ namespace FGMS.Services.Implements
                         elementEntityRepository!.UpdateEntity(ee, new Expression<Func<ElementEntity, object>>[] { src => src.Status, src => src.CargoSpaceId, src => src.Position });
                     }
                 }
+                record.Type = WorkOrderType.砂轮退仓;
                 record.Status = WorkOrderStatus.工单结束;
-                workOrderRepository.UpdateEntity(record, new Expression<Func<WorkOrder, object>>[] { src => src.Status });
+                workOrderRepository.UpdateEntity(record, new Expression<Func<WorkOrder, object>>[] { src => src.Type, src => src.Status });
                 bool success = await fgmsDbContext.SaveChangesAsync() > 0;
                 if (success)
                     await fgmsDbContext.CommitTrans();

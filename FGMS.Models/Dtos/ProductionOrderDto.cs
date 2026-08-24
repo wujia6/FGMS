@@ -28,6 +28,7 @@
         public DateTime? PlannedEndTime { get; set; }
         public DateTime? CompletedTime { get; set; }
         public bool RequireWheel { get; set; }
+        public string? KrCode { get; set; }
 
         public WorkOrderDto? WorkOrderDto { get; set; }
         public List<MaterialIssueOrderDto>? MaterialIssueOrderDtos { get; set; }

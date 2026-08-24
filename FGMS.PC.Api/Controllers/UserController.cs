@@ -40,13 +40,15 @@ namespace FGMS.PC.Api.Controllers
         /// <param name="pageIndex">页码</param>
         /// <param name="pageSize">记录数</param>
         /// <param name="name">姓名</param>
+        /// <param name="orgCode">组织编码</param>
         /// <returns></returns>
         [HttpGet("list")]
         [PermissionAsync("user_management", "view", "电脑")]
-        public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize, string? name)
+        public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize, string? name, string? orgCode)
         {
             var expression = ExpressionBuilder.GetTrue<UserInfo>()
                 .AndIf(!string.IsNullOrEmpty(name), src => src.Name.Contains(name!))
+                .AndIf(!string.IsNullOrEmpty(orgCode), src => src.RoleInfo!.Organize!.Code == orgCode)
                 .And(src => src.RoleInfoId != 1);
             
             var entities = await userInfoService.ListAsync(expression, include: src => src.Include(src => src.RoleInfo!).ThenInclude(src => src.Organize!));

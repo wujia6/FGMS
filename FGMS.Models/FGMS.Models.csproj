@@ -10,7 +10,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="6.0.36" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="6.0.36" />
-    <PackageReference Include="MiniExcel" Version="1.41.1" />
+    <PackageReference Include="MiniExcel" Version="1.45.0" />
   </ItemGroup>
 
 </Project>

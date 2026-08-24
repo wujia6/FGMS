@@ -10,7 +10,6 @@ namespace FGMS.Core.EfCore.Implements
     public class FgmsDbContext : DbContext, IFgmsDbContext
     {
         #region DbSets
-
         public DbSet<Brand> Brands { get; set; } = default!;
         public DbSet<Equipment> Equipments { get; set; } = default!;
         public DbSet<Organize> Organizes { get; set; } = default!;
@@ -32,6 +31,7 @@ namespace FGMS.Core.EfCore.Implements
         public DbSet<MaterialDiameter> MaterialDiameters { get; set; } = default!;
         public DbSet<MenuInfo> MenuInfos { get; set; } = default!;
         public DbSet<PermissionInfo> PermissionInfos { get; set; } = default!;
+        public DbSet<ProcessingStandard> ProcessingStandards { get; set; } = default!;
 
         #endregion
 

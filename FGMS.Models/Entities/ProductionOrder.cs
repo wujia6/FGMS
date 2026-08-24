@@ -27,6 +27,8 @@ namespace FGMS.Models.Entities
         public DateTime? PlannedEndTime { get; set; }
         public DateTime? CompletedTime { get; set; }
         public bool RequireWheel { get; set; }
+        public string? KrCode { get; set; }
+        public string? ProcessWheel { get; set; }
         public virtual UserInfo? UserInfo { get; set; }
         public virtual Equipment? Equipment { get; set; }
         public virtual WorkOrder? WorkOrder { get; set; }
@@ -59,6 +61,8 @@ namespace FGMS.Models.Entities
             builder.Property(x => x.PlannedEndTime);
             builder.Property(x => x.CompletedTime);
             builder.Property(x => x.RequireWheel).HasDefaultValue(false);
+            builder.Property(x => x.KrCode).HasMaxLength(50);
+            builder.Property(x => x.ProcessWheel).HasMaxLength(50);
             builder.HasOne(x => x.WorkOrder).WithMany(x => x.ProductionOrders).HasForeignKey(x => x.WorkOrderId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
             builder.HasOne(x => x.Equipment).WithMany(x => x.ProductionOrders).HasForeignKey(x => x.EquipmentId).OnDelete(DeleteBehavior.Restrict);
             builder.HasOne(x => x.UserInfo).WithMany().HasForeignKey(x => x.UserInfoId).OnDelete(DeleteBehavior.Restrict);

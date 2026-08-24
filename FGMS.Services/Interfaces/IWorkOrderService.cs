@@ -10,7 +10,7 @@ namespace FGMS.Services.Interfaces
 
         Task<dynamic> ReadyAsync(dynamic paramJson);
 
-        Task<dynamic> RenovatedAsync(ElementEntity entity, string workOrderNo, int renovateorId);
+        Task<dynamic> RenovatedAsync(ElementEntity entity, string dynamicBalance, int renovateorId, string workOrderNo);
 
         Task<dynamic> ReadyActionAsync(dynamic paramJson);
 

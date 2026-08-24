@@ -4,6 +4,7 @@ using FGMS.Core.EfCore.Implements;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FGMS.Core.Migrations
 {
     [DbContext(typeof(FgmsDbContext))]
-    partial class FgmsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260805022552_update65")]
+    partial class update65
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -139,10 +141,6 @@ namespace FGMS.Core.Migrations
                     b.Property<string>("Code")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("DynamicBalance")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
 
                     b.Property<bool>("IsStandard")
                         .ValueGeneratedOnAdd()
@@ -698,94 +696,6 @@ namespace FGMS.Core.Migrations
                     b.ToTable("PermissionInfos");
                 });
 
-            modelBuilder.Entity("FGMS.Models.Entities.ProcessingStandard", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
-                    b.Property<DateTime?>("BomProcessDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("BomProcessorId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("CompletionDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CustomerDrawingNumber")
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
-
-                    b.Property<string>("DrawingType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<int?>("HandlerId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("MachineModel")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("MaterialNumber")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int?>("Month")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("OrderDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("PlannedDemandTime")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Process")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int?>("ProgramStatus")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<string>("StandardGrindingWheelSet")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("ToolName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("ToolSpecification")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("ToolType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<double?>("WorkingHours")
-                        .HasColumnType("float");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BomProcessorId");
-
-                    b.HasIndex("HandlerId");
-
-                    b.ToTable("ProcessingStandards");
-                });
-
             modelBuilder.Entity("FGMS.Models.Entities.ProductionOrder", b =>
                 {
                     b.Property<int>("Id")
@@ -854,10 +764,6 @@ namespace FGMS.Core.Migrations
 
                     b.Property<DateTime?>("PlannedEndTime")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("ProcessWheel")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
@@ -1356,24 +1262,6 @@ namespace FGMS.Core.Migrations
                     b.Navigation("MenuInfo");
 
                     b.Navigation("RoleInfo");
-                });
-
-            modelBuilder.Entity("FGMS.Models.Entities.ProcessingStandard", b =>
-                {
-                    b.HasOne("FGMS.Models.Entities.UserInfo", "BomProcessor")
-                        .WithMany()
-                        .HasForeignKey("BomProcessorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("FGMS.Models.Entities.UserInfo", "Handler")
-                        .WithMany()
-                        .HasForeignKey("HandlerId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("BomProcessor");
-
-                    b.Navigation("Handler");
                 });
 
             modelBuilder.Entity("FGMS.Models.Entities.ProductionOrder", b =>

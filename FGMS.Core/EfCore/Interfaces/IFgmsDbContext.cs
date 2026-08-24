@@ -29,5 +29,6 @@ namespace FGMS.Core.EfCore.Interfaces
         DbSet<MaterialIssueOrder> MaterialIssueOrders { get; set; }
         DbSet<WorkOrderStandard> WorkOrderStandards { get; set; }
         DbSet<MaterialDiameter> MaterialDiameters { get; set; }
+        DbSet<ProcessingStandard> ProcessingStandards { get; set; }
     }
 }

@@ -84,6 +84,7 @@ namespace FGMS.Android.Api.Controllers
                 expression,
                 include: src => src.Include(src => src.ProductionOrders!).ThenInclude(po => po.Equipment!)
                     .Include(src => src.ProductionOrders!).ThenInclude(po => po.Equipment!).ThenInclude(po => po.Organize!)
+                    .Include(src => src.Parent!).ThenInclude(p => p.ProductionOrders!).ThenInclude(po => po.Equipment!).ThenInclude(po => po.Organize!)
                     .Include(src => src.UserInfo!)
                     .Include(src => src.WorkOrderStandards!).ThenInclude(src => src.Standard!)
                     .Include(src => src.Components!)
@@ -101,11 +102,12 @@ namespace FGMS.Android.Api.Controllers
         {
             var entity = await workOrderService.ModelAsync(
                 expression: src => src.Components!.FirstOrDefault(src => src.ElementEntities!.FirstOrDefault(src => src.Code!.Equals(eeCode)) != null) != null,
-                include: src => src.Include(src => src.ProductionOrders!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize)
+                include: src => src
+                    .Include(src => src.Components!).ThenInclude(src => src.ElementEntities!).ThenInclude(src => src.Element!)
+                    .Include(src => src.ProductionOrders!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize)
                     .Include(src => src.Childrens)
                     .Include(src => src.UserInfo)
-                    .Include(src => src.Renovateor!)
-                    .Include(src => src.Components!).ThenInclude(src => src.ElementEntities!).ThenInclude(src => src.Element!));
+                    .Include(src => src.Renovateor!));
 
             if (entity is null)
                 return new { success = false, message = "工单不存在或已删除" };
@@ -232,10 +234,11 @@ namespace FGMS.Android.Api.Controllers
             if (workOrder.Components!.Any(src => src.ElementEntities!.FirstOrDefault(src => src.Status != ElementEntityStatus.出库 && src.Status != ElementEntityStatus.下机) != null))
                 return new { success = false, message = "工件状态为出库或下机，才能创建返修单" };
 
-            var expression = ExpressionBuilder.GetTrue<Equipment>()
-                .AndIf(equipmentId > 0, src => src.Id == equipmentId)
-                .AndIf(!string.IsNullOrEmpty(workOrder.PreAllocationEquipmentCode), src => src.Code.Equals(workOrder.PreAllocationEquipmentCode));
-            var equipment = await equipmentService.ModelAsync(expression, include: src => src.Include(src => src.Organize!));
+            //var expression = ExpressionBuilder.GetTrue<Equipment>()
+            //    .AndIf(equipmentId > 0, src => src.Id == equipmentId)
+            //    .AndIf(!string.IsNullOrEmpty(workOrder.PreAllocationEquipmentCode), src => src.Code.Equals(workOrder.PreAllocationEquipmentCode));
+
+            var equipment = await equipmentService.ModelAsync(expression: src => src.Id == equipmentId, include: src => src.Include(src => src.Organize!));
 
             if (equipment is null || equipment.Organize is null)
                 return new { success = false, message = "设备信息异常，无法创建返修单" };
@@ -331,18 +334,23 @@ namespace FGMS.Android.Api.Controllers
         }
 
         /// <summary>
-        /// 修整
+        /// 整修
         /// </summary>
-        /// <param name="dto">JSON</param>
+        /// <param name="paramJson">{ 'dto': 'json', 'dynamicBalance': 'string' }</param>
         /// <returns></returns>
         [HttpPut]
-        public async Task<dynamic> RenovatedAsync([FromBody] ElementEntityDto dto)
+        public async Task<IActionResult> RenovatedAsync([FromBody] dynamic paramJson)
         {
-            if (string.IsNullOrEmpty(dto.WorkOrderNo))
-                return new { success = false, message = "未知工单" };
+            if (paramJson is null || paramJson.dto is null || paramJson.dynamicBalance is null)
+                return BadRequest("参数错误");
 
+            ElementEntityDto dto = JsonConvert.DeserializeObject<ElementEntityDto>(paramJson.dto.ToString());
+            string dynamicBalance = paramJson.dynamicBalance;
+            string workOrderNo = dto.WorkOrderNo!;
             var entity = mapper.Map<ElementEntity>(dto);
-            return await workOrderService.RenovatedAsync(entity, dto.WorkOrderNo, userOnline.Id!.Value);
+            var result = await workOrderService.RenovatedAsync(entity, dynamicBalance, userOnline.Id!.Value, workOrderNo);
+            bool success = JsonConvert.DeserializeObject(JsonConvert.SerializeObject(result)).success ?? false;
+            return success ? Ok(result) : BadRequest(result);
         }
 
         /// <summary>
