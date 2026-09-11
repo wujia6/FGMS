@@ -93,7 +93,7 @@ namespace FGMS.PC.Api.Controllers
             var query = workOrderService.GetQueryable(expression, include: src => src
                     .Include(src => src.ProductionOrders!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize!)
                     .Include(src => src.Components!).ThenInclude(src => src.ElementEntities!.OrderBy(src => src.Position)).ThenInclude(src => src.Element!)
-                    .Include(src => src.Parent!).ThenInclude(src => src.ProductionOrders!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize!)
+                    //.Include(src => src.Parent!).ThenInclude(src => src.ProductionOrders!).ThenInclude(src => src.Equipment!).ThenInclude(src => src.Organize!)
                     .Include(src => src.UserInfo!))
                 //.OrderByDescending(src => src.Priority)
                 //.ThenByDescending(src => src.Id)
@@ -107,19 +107,18 @@ namespace FGMS.PC.Api.Controllers
             var dtos = mapper.Map<List<WorkOrderDto>>(entities);
 
             // 这里需要查询ProcessingStandard表，获取每个工单的加工标准信息，并将其添加到对应的WorkOrderDto中
-            var stdRecords = await processingStandardService.ListAsync();
+            var stdRecords = await processingStandardService.ListAsync(expression: src => src.ProgramStatus == GeneralStatus.已完成 && !string.IsNullOrEmpty(src.StandardGrindingWheelSet));
             if (stdRecords?.Any() == true)
             {
                 // 一次性构建查找字典
                 var stdDict = stdRecords
-                    .Where(src => src.ProgramStatus == GeneralStatus.已完成)
                     .GroupBy(src => src.MaterialNumber)
                     .ToDictionary(g => g.Key, g => g.MaxBy(a => a.Id)?.StandardGrindingWheelSet);
 
                 // 批量赋值
                 foreach (var dto in dtos)
                 {
-                    if (stdDict.TryGetValue(dto.MaterialNo, out var wheelSet))
+                    if (stdDict.TryGetValue(dto.MaterialNo, out var wheelSet) && !string.IsNullOrEmpty(wheelSet))
                     {
                         dto.StandardGrindingWheelSet = wheelSet;
                     }

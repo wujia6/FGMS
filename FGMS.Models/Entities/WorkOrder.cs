@@ -22,6 +22,7 @@ namespace FGMS.Models.Entities
         public int? RenovateorId { get; set; }
         public string? RepairEquipmentCode { get; set; }
         public string? PreAllocationEquipmentCode { get; set; }
+        public DateTime? ReceiveDate { get; set; }
         public virtual UserInfo? UserInfo { get; set; }
         public virtual WorkOrder? Parent { get; set; }
         public virtual UserInfo? Renovateor { get; set; }
@@ -36,7 +37,6 @@ namespace FGMS.Models.Entities
         public void Configure(EntityTypeBuilder<WorkOrder> builder)
         {
             builder.HasKey(x => x.Id);
-            //builder.Property(x => x.ProductionOrderId);
             builder.Property(x => x.UserInfoId).IsRequired();
             builder.Property(x => x.OrderNo).IsRequired().HasMaxLength(20);
             builder.Property(x => x.Type).IsRequired();
@@ -52,6 +52,7 @@ namespace FGMS.Models.Entities
             builder.Property(x => x.RenovateorId);
             builder.Property(x => x.RepairEquipmentCode).HasMaxLength(10);
             builder.Property(x => x.PreAllocationEquipmentCode).HasMaxLength(10);
+            builder.Property(x => x.ReceiveDate);
             builder.HasOne(x => x.Parent).WithMany(x => x.Childrens).HasForeignKey(x => x.Pid).OnDelete(DeleteBehavior.Restrict);
             builder.HasOne(x => x.Renovateor).WithMany().HasForeignKey(x => x.RenovateorId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);// Renovateor不建立反向导航属性
         }

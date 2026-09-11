@@ -84,11 +84,11 @@ namespace FGMS.Android.Api.Controllers
                 expression,
                 include: src => src.Include(src => src.ProductionOrders!).ThenInclude(po => po.Equipment!)
                     .Include(src => src.ProductionOrders!).ThenInclude(po => po.Equipment!).ThenInclude(po => po.Organize!)
-                    .Include(src => src.Parent!).ThenInclude(p => p.ProductionOrders!).ThenInclude(po => po.Equipment!).ThenInclude(po => po.Organize!)
+                    //.Include(src => src.Parent!).ThenInclude(p => p.ProductionOrders!).ThenInclude(po => po.Equipment!).ThenInclude(po => po.Organize!)
                     .Include(src => src.UserInfo!)
                     .Include(src => src.WorkOrderStandards!).ThenInclude(src => src.Standard!)
-                    .Include(src => src.Components!)
-                    .ThenInclude(src => src.ElementEntities!.OrderBy(src => src.Position)).ThenInclude(src => src.Element!));
+                    .Include(src => src.Components!).ThenInclude(src => src.ElementEntities!.OrderBy(src => src.Position)).ThenInclude(src => src.Element!));
+
             return mapper.Map<List<WorkOrderDto>>(entities.OrderByDescending(src => src.CreateDate).ToList());
         }
 
@@ -179,7 +179,8 @@ namespace FGMS.Android.Api.Controllers
 
                 var cmps = orderEntity.Components;
                 orderEntity.Status = WorkOrderStatus.机台接收;
-                success = await workOrderService.UpdateAsync(orderEntity, new Expression<Func<WorkOrder, object>>[] { src => src.Status });
+                orderEntity.ReceiveDate = DateTime.Now;
+                success = await workOrderService.UpdateAsync(orderEntity, new Expression<Func<WorkOrder, object>>[] { src => src.Status, src => src.ReceiveDate });
                 if (success)
                 {
                     var logs = new List<TrackLog>();
@@ -229,26 +230,28 @@ namespace FGMS.Android.Api.Controllers
 
             var workOrder = await workOrderService.ModelAsync(
                 expression: src => src.Id == workOrderId,
-                include: src => src.Include(src => src.Components!).ThenInclude(src => src.ElementEntities!));
+                include: src => src.Include(src => src.ProductionOrders!).Include(src => src.Components!).ThenInclude(src => src.ElementEntities!));
 
             if (workOrder.Components!.Any(src => src.ElementEntities!.FirstOrDefault(src => src.Status != ElementEntityStatus.出库 && src.Status != ElementEntityStatus.下机) != null))
                 return new { success = false, message = "工件状态为出库或下机，才能创建返修单" };
 
             //var expression = ExpressionBuilder.GetTrue<Equipment>()
-            //    .AndIf(equipmentId > 0, src => src.Id == equipmentId)
+            //    .AndIf(equipmentId > 0 && equipmentId != 1014, src => src.Id == equipmentId)
             //    .AndIf(!string.IsNullOrEmpty(workOrder.PreAllocationEquipmentCode), src => src.Code.Equals(workOrder.PreAllocationEquipmentCode));
 
             var equipment = await equipmentService.ModelAsync(expression: src => src.Id == equipmentId, include: src => src.Include(src => src.Organize!));
 
-            if (equipment is null || equipment.Organize is null)
+            if (equipment is null || equipment.Organize is null || equipment.Id == 1014 && string.IsNullOrEmpty(workOrder.PreAllocationEquipmentCode))
                 return new { success = false, message = "设备信息异常，无法创建返修单" };
+
+            string equipmentCode = equipment.Code.Equals("DCJGZ") && !string.IsNullOrEmpty(workOrder.PreAllocationEquipmentCode) ? workOrder.PreAllocationEquipmentCode : equipment.Code;
 
             //创建报损工单
             string orderNum = $"RO{randomNumber.CreateOrderNum()}";
             var bxOrder = new WorkOrder
             {
                 Pid = workOrderId,
-                RepairEquipmentCode = equipment.Code,
+                RepairEquipmentCode = equipmentCode,
                 UserInfoId = userOnline.Id!.Value,
                 OrderNo = orderNum,
                 Priority = WorkOrderPriority.高,
@@ -256,7 +259,8 @@ namespace FGMS.Android.Api.Controllers
                 MaterialNo = paramJson.materialNo,
                 MaterialSpec = paramJson.materialSpec,
                 Status = WorkOrderStatus.呼叫AGV,
-                AgvTaskCode = Guid.NewGuid().ToString("N")[..16]
+                AgvTaskCode = Guid.NewGuid().ToString("N")[..16],
+                PreAllocationEquipmentCode = equipmentCode
             };
             var success = await workOrderService.AddAsync(bxOrder);
 

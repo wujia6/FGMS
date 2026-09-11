@@ -1,5 +1,7 @@
 ﻿using FGMS.Android.Api.Filters;
+using FGMS.Models.Dtos;
 using FGMS.Services.Interfaces;
+using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -17,16 +19,37 @@ namespace FGMS.Android.Api.Controllers
     {
         private readonly IComponentService componentService;
         private readonly IElementEntityService elementEntityService;
+        private readonly IMapper mapper;
 
         /// <summary>
         /// 
         /// </summary>
         /// <param name="componentService"></param>
         /// <param name="elementEntityService"></param>
-        public ComponentController(IComponentService componentService, IElementEntityService elementEntityService)
+        /// <param name="mapper"></param>
+        public ComponentController(IComponentService componentService, IElementEntityService elementEntityService, IMapper mapper)
         {
             this.componentService = componentService;
             this.elementEntityService = elementEntityService;
+            this.mapper = mapper;
+        }
+
+        /// <summary>
+        /// 按工件编码查询砂轮组
+        /// </summary>
+        /// <param name="elementEntityCode">工件编码</param>
+        /// <returns></returns>
+        [HttpGet]
+        public async Task<IActionResult> FindByCodeAsync(string elementEntityCode)
+        {
+            var component = await componentService.ModelAsync(
+                expression: src => src.ElementEntities!.Any(src => src.Code!.Equals(elementEntityCode)), 
+                include: src => src.Include(src => src.ElementEntities!));
+
+            if (component is null)
+                return NotFound("未找到对应的砂轮组");
+
+            return Ok(mapper.Map<ComponentDto>(component));
         }
 
         /// <summary>

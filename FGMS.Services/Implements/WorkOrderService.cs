@@ -291,7 +291,7 @@ namespace FGMS.Services.Implements
                     workOrderRepository.UpdateEntity(order, new Expression<Func<WorkOrder, object>>[] { src => src.RenovateorId! });
                 }
 
-                if (componten.DynamicBalance == null || (componten.DynamicBalance != null && !componten.DynamicBalance!.Equals(dynamicBalance)))
+                if (!string.IsNullOrEmpty(dynamicBalance) && !componten.DynamicBalance!.Equals(dynamicBalance))
                 {
                     componten.DynamicBalance = dynamicBalance;
                     componentRepository.UpdateEntity(componten, new Expression<Func<Component, object>>[] { src => src.DynamicBalance! });

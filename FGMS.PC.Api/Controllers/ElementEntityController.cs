@@ -78,7 +78,17 @@ namespace FGMS.PC.Api.Controllers
         [HttpGet("list")]
         [PermissionAsync("element_management", "view", "电脑")]
         public async Task<dynamic> ListAsync(
-            int? pageIndex, int? pageSize, string? material, string? code, string? elementMaterialNo, string? modal, string? category, string? status, bool? isGroup, DateTime? startDate, DateTime? endDate)
+            int? pageIndex, 
+            int? pageSize, 
+            string? material, 
+            string? code, 
+            string? elementMaterialNo, 
+            string? modal, 
+            string? category, 
+            string? status, 
+            bool? isGroup, 
+            DateTime? startDate, 
+            DateTime? endDate)
         {
             var expression = ExpressionBuilder.GetTrue<ElementEntity>()
                 .AndIf(!string.IsNullOrEmpty(material), src => src.MaterialNo.Contains(material!))
@@ -187,14 +197,14 @@ namespace FGMS.PC.Api.Controllers
                 //    $"{emt.ModalNo}-{emt.Diameter}-{emt.Lengths}-{randomNum}";
                 string code = $"{emt.Spec}-{randomNum}";
                 string codeImage = await coderHelper.CreateAndSaveAsync(code, rootPath);
-                eelist.Add(new ElementEntity 
-                { 
+                eelist.Add(new ElementEntity
+                {
                     ElementId = elementId,
                     MaterialNo = $"{emt.MaterialNo}-{randomNum}",
                     Code = code,
                     QrCodeImage = codeImage
                 });
-                loglist.Add(new TrackLog { Content = $"生成工件：{code} " });
+                loglist.Add(new TrackLog { Content = $"生成工件：{code}" });
             }
             bool success = await elementEntityService.AddAsync(eelist);
             if (success)

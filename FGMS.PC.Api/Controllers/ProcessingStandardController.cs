@@ -146,6 +146,42 @@ namespace FGMS.PC.Api.Controllers
                     continue;
                 }
 
+                if (string.IsNullOrWhiteSpace(row.ToolSpecification))
+                {
+                    errors.Add($"第{rowNumber}行：刀具规格不能为空");
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(row.MaterialNumber))
+                {
+                    errors.Add($"第{rowNumber}行：料号不能为空");
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(row.DrawingType))
+                {
+                    errors.Add($"第{rowNumber}行：图纸类型不能为空");
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(row.ToolType))
+                {
+                    errors.Add($"第{rowNumber}行：刀具类型不能为空");
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(row.MachineModel))
+                {
+                    errors.Add($"第{rowNumber}行：机型不能为空");
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(row.BomProcessorName))
+                {
+                    errors.Add($"第{rowNumber}行：BOM处理人不能为空");
+                    continue;
+                }
+
                 // 如果BOM处理日期有值，但BOM处理人为空，给出警告（不阻断）
                 if (row.BomProcessDate.HasValue && string.IsNullOrWhiteSpace(row.BomProcessorName))
                 {
@@ -154,9 +190,9 @@ namespace FGMS.PC.Api.Controllers
                 }
 
                 // 验证工时（如果填写了，必须是正数）
-                if (row.WorkingHours.HasValue && row.WorkingHours.Value <= 0)
+                if (row.WorkingHours.HasValue && row.WorkingHours.Value < 0)
                 {
-                    errors.Add($"第{rowNumber}行：工时必须大于0");
+                    errors.Add($"第{rowNumber}行：工时必须>=0");
                     continue;
                 }
 
@@ -176,38 +212,41 @@ namespace FGMS.PC.Api.Controllers
                 validDtos.Add(row);
             }
 
-            // 如果有验证错误，返回错误信息
-            if (errors.Count > 0)
-            {
-                return BadRequest(new
-                {
-                    success = false,
-                    message = $"数据验证失败，共{errors.Count}条错误",
-                    errors = errors.Take(100).ToList() // 最多返回100条错误
-                });
-            }
-
             if (validDtos.Count == 0)
             {
                 return BadRequest(new { success = false, message = "没有有效数据可导入" });
             }
 
             // 5. 保存到数据库
-            var userInfos = await userInfoService.ListAsync();
-            var entities = mapper.Map<List<ProcessingStandard>>(validDtos);
-            for (int i = 0; i < entities.Count; i++)
+            var userInfos = await userInfoService.ListAsync(expression: src => src.RoleInfo!.Code == "GCJS");
+            var entities = new List<ProcessingStandard>();
+            foreach (var dto in validDtos)
             {
-                var entity = entities[i];
-                var dto = validDtos[i];
-                entity.BomProcessorId = userInfos.FirstOrDefault(u => u.Name == dto.BomProcessorName)?.Id ?? 0;
-                if (entity.BomProcessorId == 0)
+                int bomProcessorId = userInfos.FirstOrDefault(u => u.Name == dto.BomProcessorName)?.Id ?? 0;
+                if (bomProcessorId == 0)
                 {
-                    errors.Add($"第{i + 2}行：BOM处理人 '{dto.BomProcessorName}' 不存在，已跳过此行");
+                    errors.Add($"BOM处理人 '{dto.BomProcessorName}' 不存在，已跳过此行");
                     continue;
                 }
+                var entity = mapper.Map<ProcessingStandard>(dto);
+                entity.BomProcessorId = bomProcessorId;
                 entity.HandlerId = userInfos.FirstOrDefault(u => u.Name == dto.HandlerName)?.Id ?? null;
+                entities.Add(entity);
             }
-            return await processingStandardService.AddAsync(entities).ContinueWith<IActionResult>(t => t.IsCompletedSuccessfully ? Ok(new
+
+            //return await processingStandardService.AddAsync(entities).ContinueWith<IActionResult>(t => t.IsCompletedSuccessfully ? Ok(new
+            //{
+            //    success = true,
+            //    message = $"成功导入{entities.Count}条记录",
+            //    errors = errors.Count > 0 ? errors : null
+            //}) : BadRequest(new
+            //{
+            //    success = false,
+            //    message = "保存到数据库失败"
+            //}));
+
+            bool success = await processingStandardService.AddAsync(entities);
+            return success ? Ok(new
             {
                 success = true,
                 message = $"成功导入{entities.Count}条记录",
@@ -215,8 +254,9 @@ namespace FGMS.PC.Api.Controllers
             }) : BadRequest(new
             {
                 success = false,
-                message = "保存到数据库失败"
-            }));
+                message = "保存到数据库失败",
+                errors = errors.Count > 0 ? errors : null
+            });
         }
 
         /// <summary>

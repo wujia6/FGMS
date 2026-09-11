@@ -7,8 +7,13 @@ namespace FGMS.Models.Dtos
     /// </summary>
     public class ProcessingStandardDto
     {
+        [ExcelIgnore]
         public int Id { get; set; }
+
+        [ExcelIgnore]
         public int BomProcessorId { get; set; }
+
+        [ExcelIgnore]
         public int HandlerId { get; set; }
 
         [ExcelColumn(Name = "接单日期")]

@@ -80,6 +80,9 @@ namespace FGMS.Models.Dtos
         public string? PreAllocationEquipmentCode { get; set; }
 
         [ExcelIgnore]
+        public DateTime? ReceiveDate { get; set; }
+
+        [ExcelIgnore]
         public string? StandardGrindingWheelSet { get; set; }
 
         [ExcelIgnore]

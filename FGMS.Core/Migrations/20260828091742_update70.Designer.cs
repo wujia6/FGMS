@@ -4,6 +4,7 @@ using FGMS.Core.EfCore.Implements;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FGMS.Core.Migrations
 {
     [DbContext(typeof(FgmsDbContext))]
-    partial class FgmsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260828091742_update70")]
+    partial class update70
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -435,6 +437,39 @@ namespace FGMS.Core.Migrations
                     b.HasIndex("ElementId");
 
                     b.ToTable("ElementEntities");
+                });
+
+            modelBuilder.Entity("FGMS.Models.Entities.ElementEntityLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+
+                    b.Property<int>("ElementEntityId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("OperateDate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETDATE()");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("UserInfoId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ElementEntityId");
+
+                    b.HasIndex("UserInfoId");
+
+                    b.ToTable("ElementEntityLogs", (string)null);
                 });
 
             modelBuilder.Entity("FGMS.Models.Entities.Equipment", b =>
@@ -1146,9 +1181,6 @@ namespace FGMS.Core.Migrations
                     b.Property<int>("Priority")
                         .HasColumnType("int");
 
-                    b.Property<DateTime?>("ReceiveDate")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("Remark")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -1283,6 +1315,25 @@ namespace FGMS.Core.Migrations
                     b.Navigation("Component");
 
                     b.Navigation("Element");
+                });
+
+            modelBuilder.Entity("FGMS.Models.Entities.ElementEntityLog", b =>
+                {
+                    b.HasOne("FGMS.Models.Entities.ElementEntity", "ElementEntity")
+                        .WithMany()
+                        .HasForeignKey("ElementEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FGMS.Models.Entities.UserInfo", "UserInfo")
+                        .WithMany()
+                        .HasForeignKey("UserInfoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ElementEntity");
+
+                    b.Navigation("UserInfo");
                 });
 
             modelBuilder.Entity("FGMS.Models.Entities.Equipment", b =>

@@ -12,8 +12,8 @@ namespace FGMS.Models.Dtos
 
         [ExcelColumn(Name = "类型")]
         public string? ElementCategory { get; set; }
-
-        [ExcelIgnore]
+        
+        [ExcelColumn(Name = "料号")]
         public string? ElementMaterialNo { get; set; }
 
         [ExcelIgnore]
@@ -42,8 +42,8 @@ namespace FGMS.Models.Dtos
 
         [ExcelIgnore]
         public int? CargoSpaceQuantity { get; set; }
-        
-        [ExcelColumn(Name = "料号")]
+
+        [ExcelIgnore]
         public string MaterialNo { get; set; }
         
         [ExcelColumn(Name = "编码")]
