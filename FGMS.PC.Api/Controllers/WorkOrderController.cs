@@ -80,11 +80,21 @@ namespace FGMS.PC.Api.Controllers
         /// <returns></returns>
         [HttpGet("list")]
         [PermissionAsync("whell_order_management", "view", "电脑")]
-        public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize, string? type, string? orderNo, string? equipmentCode, string? materialNo, string? status, DateTime? date, string field = "Id", string rule = "desc" )
+        public async Task<dynamic> ListAsync(
+            int? pageIndex, 
+            int? pageSize, 
+            string? type, 
+            string? orderNo, 
+            string? equipmentCode, 
+            string? materialNo, 
+            string? status, 
+            DateTime? date, 
+            string field = "Id", 
+            string rule = "desc" )
         {
             var expression = ExpressionBuilder.GetTrue<WorkOrder>()
                 .AndIf(!string.IsNullOrEmpty(type), src => src.Type == Enum.Parse<WorkOrderType>(type!))
-                .AndIf(!string.IsNullOrEmpty(orderNo), src => src.OrderNo.Equals(orderNo!))
+                .AndIf(!string.IsNullOrEmpty(orderNo), src => src.OrderNo.Equals(orderNo!) || src.ProductionOrders!.Any(po => po.OrderNo.Equals(orderNo!)))
                 .AndIf(!string.IsNullOrEmpty(equipmentCode), src => src.ProductionOrders!.Any(po => po.Equipment!.Code.Equals(equipmentCode!)) || src.PreAllocationEquipmentCode!.Equals(equipmentCode!))
                 .AndIf(!string.IsNullOrEmpty(materialNo), src => src.MaterialNo.Contains(materialNo!))
                 .AndIf(!string.IsNullOrEmpty(status), src => src.Status == Enum.Parse<WorkOrderStatus>(status!))

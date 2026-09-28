@@ -450,6 +450,7 @@ namespace FGMS.Android.Api.Controllers
         {
             if (paramJson is null || paramJson.workOrderId is null)
                 throw new ArgumentNullException(nameof(paramJson));
+
             int woId = paramJson.workOrderId;
             var entity = await workOrderService.ModelAsync(
                 expression: src => src.Id == woId,
@@ -462,6 +463,9 @@ namespace FGMS.Android.Api.Controllers
 
             if (entity.Childrens!.Any(src => src.Type == WorkOrderType.砂轮返修))
                 return new { success = false, message = "已执行返修流程，无法退仓" };
+
+            if (entity.ProductionOrders!.Any(src => src.Status != ProductionOrderStatus.已完成))
+                return new { success = false, message = "制令单未完成，无法退仓" };
 
             var ees = entity.Components!.SelectMany(src => src.ElementEntities!);
 
@@ -476,7 +480,10 @@ namespace FGMS.Android.Api.Controllers
 
             var equipment = entity.ProductionOrders is null || !entity.ProductionOrders.Any() ? 
                 await equipmentService.ModelAsync(expression: src => src.Code.Equals(entity.PreAllocationEquipmentCode), include: src => src.Include(src => src.Organize!)) : 
-                entity.ProductionOrders!.First().Equipment!;
+                entity.ProductionOrders!.FirstOrDefault()?.Equipment;
+
+            if (equipment is null || equipment.Organize is null)
+                return new { success = false, message = "未知区域或机台，无法退仓" };
 
             entity.Type = WorkOrderType.砂轮退仓;
             entity.Status = WorkOrderStatus.AGV收料;

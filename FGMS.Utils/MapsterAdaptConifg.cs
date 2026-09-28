@@ -124,7 +124,9 @@ namespace FGMS.Utils
                     src.ProductionOrders!.FirstOrDefault()!.Equipment!.Organize!.Code :
                     src.Parent == null ? string.Empty : src.Parent!.ProductionOrders!.FirstOrDefault()!.Equipment!.Organize!.Code)
                 .Map(dest => dest.ProductionOrderId, src => src.ProductionOrders != null && src.ProductionOrders!.Any() ? src.ProductionOrders!.FirstOrDefault()!.Id : (int?)null)
+                .Map(dest => dest.ProductionOrderIds, src => src.ProductionOrders != null && src.ProductionOrders!.Any() ? src.ProductionOrders!.Select(po => po.Id).ToArray() : null)
                 .Map(dest => dest.ProductionOrderNo, src => src.ProductionOrders != null && src.ProductionOrders!.Any() ? src.ProductionOrders!.FirstOrDefault()!.OrderNo : string.Empty)
+                .Map(dest => dest.ProductionOrderNos, src => src.ProductionOrders != null && src.ProductionOrders!.Any() ? src.ProductionOrders!.Select(po => po.OrderNo).ToArray() : null)
                 .Map(dest => dest.UserInfoName, src => src.UserInfo != null ? src.UserInfo!.Name : string.Empty)
                 .Map(dest => dest.Type, src => Enum.GetName(typeof(WorkOrderType), src.Type))
                 .Map(dest => dest.Priority, src => Enum.GetName(typeof(WorkOrderPriority), src.Priority))

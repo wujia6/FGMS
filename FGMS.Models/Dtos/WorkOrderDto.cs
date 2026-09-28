@@ -19,8 +19,14 @@ namespace FGMS.Models.Dtos
         [ExcelIgnore]
         public int ProductionOrderId { get; set; }
 
+        [ExcelIgnore]
+        public int[]? ProductionOrderIds { get; set; }
+
         [ExcelColumn(Name = "制令单")]
         public string? ProductionOrderNo { get; set; }
+
+        [ExcelIgnore]
+        public string[]? ProductionOrderNos { get; set; }
 
         [ExcelColumn(Name = "区域")]
         public string? OrganizeCode { get; set; }

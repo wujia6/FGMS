@@ -154,6 +154,9 @@ namespace FGMS.Services.Implements
             var workOrder = entity.WorkOrder!;
             bool isDelete = workOrder != null && workOrder.ProductionOrders != null && workOrder.ProductionOrders.Count() == 1;
 
+            if (issueOrders != null && issueOrders.Any(src => src.Status != MioStatus.待备料) || isDelete && workOrder!.Status != WorkOrderStatus.待审)
+                return new { success = false, message = "制令单已进入生产流程，无法删除" };
+
             await fgmsDbContext.BeginTrans();
             try
             {
@@ -201,10 +204,10 @@ namespace FGMS.Services.Implements
                     }
                 }
 
-                // 5. 删除制令单
+                // 4. 删除制令单
                 productionOrderRepository.DeleteEntity(entity);
 
-                // 4. 删除砂轮工单
+                // 5. 删除砂轮工单
                 if (workOrder != null && isDelete)
                     workOrderRepository.DeleteEntity(workOrder);
 

@@ -42,12 +42,20 @@ namespace FGMS.PC.Api.Controllers
         /// </summary>
         /// <param name="pageIndex">页码</param>
         /// <param name="pageSize">记录数</param>
+        /// <param name="machineCode">机台代码</param>
+        /// <param name="areaCode">区域代码</param>
+        /// <param name="mount">挂载状态</param>
         /// <returns></returns>
         [HttpGet("list")]
         [PermissionAsync("equipment_management", "view", "电脑")]
-        public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize)
+        public async Task<dynamic> ListAsync(int? pageIndex, int? pageSize, string? machineCode, string? areaCode, bool? mount)
         {
-            var entities = await equipmentService.ListAsync(include: src => src.Include(src => src.Organize!));
+            var expression = ExpressionBuilder.GetTrue<Equipment>()
+                .AndIf(!string.IsNullOrEmpty(machineCode), src => src.Code.Contains(machineCode!))
+                .AndIf(!string.IsNullOrEmpty(areaCode), src => src.Organize!.Code.Contains(areaCode!))
+                .AndIf(mount.HasValue, src => src.Mount == mount!.Value);
+
+            var entities = await equipmentService.ListAsync(expression, include: src => src.Include(src => src.Organize!));
             int total = entities.Count;
             if (pageIndex.HasValue && pageSize.HasValue)
                 entities = entities.Skip((pageIndex.Value - 1) * pageSize.Value).Take(pageSize.Value).ToList();
